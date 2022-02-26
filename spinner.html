@@ -1,0 +1,63 @@
+<html>
+<head>
+<script type="text/javascript">
+  // returns [x1, y1]
+  function calcPointOnCircle(radius, angleRad, xOffset=0, yOffset=0) {
+    //         .(x, y)
+    //        /|
+    //     r / | y
+    //      /  |
+    //     /---|
+    // (0,0)  x
+
+    const x = Math.cos(angleRad) * radius;
+    const y = Math.sin(angleRad) * radius;
+
+    return [x + xOffset, y + yOffset];
+  }
+
+  function drawWheel(ctx, numDivisions, ctrX, ctrY, radius) {
+    const radPerSegm = Math.PI * 2 / numDivisions;
+    let radNow = 0;
+    let radNxt = 0;
+
+    for (i=0; i<numDivisions; i++) {
+      radNxt = radNow + radPerSegm;
+      const [x1, y1] = calcPointOnCircle(radius, radNow, ctrX, ctrY);
+      const [x2, y2] = calcPointOnCircle(radius, radNxt, ctrX, ctrY);
+      // console.log("pt1(%f, %f)", x1, y1);
+      // console.log("pt2(%f, %f)", x2, y2);
+
+      ctx.beginPath();
+      ctx.lineTo(ctrX, ctrY, x1, y1);
+      ctx.arc(ctrX, ctrY, radius, radNow, radNow + radPerSegm);
+      ctx.lineTo(x2, y2, ctrX, ctrY);
+      ctx.strokeStyle = (i % 2 == 0) ? 'green' : 'red';
+      ctx.stroke();
+
+      radNow += radPerSegm;
+    }
+  }
+
+  function draw() {
+    const canvas = document.getElementById('spinner');
+    if (canvas.getContext) {
+      const ctx = canvas.getContext('2d');
+
+      const width = 300;
+      const radius = 100;
+      const midPt = width / 2;
+      drawWheel(ctx, 10, midPt, midPt, radius);
+    }
+  }
+</script>
+</head>
+
+<body onload="draw();">
+
+<h1>Spinner</h1>
+
+<canvas id="spinner" width=300 height=300></canvas>
+
+</body>
+</html>
