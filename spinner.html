@@ -24,6 +24,9 @@
     '#CFBAF0'   // purple
   ];
 
+  // globals
+  let g_rot_offset = 0.0;
+
   // FYI - instead of manually calculating rotations,
   //  use Canvas Transformations as shown in MDN 'Clock' example:
   //
@@ -105,12 +108,25 @@
       const numDivisions = 10;
 
       drawWheel(ctx, numDivisions, CANVAS_WIDTH, WHEEL_RADIUS, g_rot_offset);
+
+      // update rotation offset, to make spin
+      g_rot_offset += ROTATION_PER_FRAME;
+      if (g_rot_offset >= (Math.PI * 2)) {
+        g_rot_offset = 0.0;
+      }
+
+      window.requestAnimationFrame(draw);
     }
+  }
+
+  function init() {
+    g_rot_offset = 0.0;
+    window.requestAnimationFrame(draw);
   }
 </script>
 </head>
 
-<body onload="draw();">
+<body onload="init();">
 
 <h1>Spinner</h1>
 
