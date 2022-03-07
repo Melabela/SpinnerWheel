@@ -5,10 +5,13 @@
   const CANVAS_WIDTH = 300;  // height same; assume using square box
   const WHEEL_RADIUS = 100;  // diameter = 200
 
+  // assuming 60 FPS - one full rotation every 2 seconds
+  const ROTATION_PER_FRAME = Math.PI / 60;
+
   // COLOR PALETTES
   // Wedge BG, lighter colors
   // https://coolors.co/palette/fbf8cc-fde4cf-ffcfd2-f1c0e8-cfbaf0-a3c4f3-90dbf4-8eecf5-98f5e1-b9fbc0
-  WEDGE_BG_COLORS = [
+  const WEDGE_BG_COLORS = [
     '#F1C0E8',  // pink-red
     '#FFCFD2',  // red
     '#FDE4CF',  // orange
@@ -21,56 +24,87 @@
     '#CFBAF0'   // purple
   ];
 
-  // returns [x1, y1]
-  function calcPointOnCircle(radius, angleRad, xOffset=0, yOffset=0) {
-    //         .(x, y)
-    //        /|
-    //     r / | y
-    //      /  |
-    //     /---|
+  // FYI - instead of manually calculating rotations,
+  //  use Canvas Transformations as shown in MDN 'Clock' example:
+  //
+  //  https://developer.mozilla.org/en-US/docs/Web/API/Canvas_API/Tutorial/Basic_animations#an_animated_clock
+  //
+  // Idea - leverage Canvas Transforms to do "harder" angle manipulations:
+  //  1. draw horiz line (rad=0) and arc portion
+  //  2. **rotate canvas by angle**
+  //  3. repeat 1. & 2., for next wedge
+
+  function calcPointOnCircle(radius, angleRad) {
+    // Note: increasing y is DOWN, in 2D UI co-ordinate system
+    //
     // (0,0)  x
+    //     .---.
+    //      \  |
+    //     r \ | y
+    //        \|
+    //         . (x, y)
 
     const x = Math.cos(angleRad) * radius;
     const y = Math.sin(angleRad) * radius;
-
-    return [x + xOffset, y + yOffset];
+    return [x, y];
   }
 
-  function drawWheel(ctx, numDivisions, ctrX, ctrY, radius) {
+  function drawWheel(ctx, numDivisions, canv_width, radius, rot_offset=0.0) {
+    ctx.save()
+    ctx.clearRect(0, 0, canv_width, canv_width);
+
+    // move origin to middle of canvas & center of circle,
+    //  makes circular operations easier
+    const midPt = canv_width / 2;
+    ctx.translate(midPt, midPt);
+
+    // apply spin offset before we start drawing this frame
+    ctx.rotate(rot_offset);
+
+    // for now, have equal segments
     const radPerSegm = Math.PI * 2 / numDivisions;
-    let radNow = 0;
-    let radNxt = 0;
+    // console.log("rot_offset=%f, radPerSegm=%f", rot_offset, radPerSegm);
 
     for (i=0; i<numDivisions; i++) {
-      radNxt = radNow + radPerSegm;
-      const [x1, y1] = calcPointOnCircle(radius, radNow, ctrX, ctrY);
-      const [x2, y2] = calcPointOnCircle(radius, radNxt, ctrX, ctrY);
+      // Repeat:
+      // - Draw wedge, w/ one edge on horizontal y=0
+      // - Rotate entire context, setup for next wedge
+      //
+      // (0,0)   r
+      //  .----------. (x1,y1) = (r,0)
+      //    \       /
+      //      \    /
+      //        \ /
+      //         . (x2,y2)
+      const [x1, y1] = [radius, 0];
+      const [x2, y2] = calcPointOnCircle(radius, radPerSegm);
       // console.log("pt1=(%f, %f)", x1, y1);
       // console.log("pt2=(%f, %f)", x2, y2);
-      // console.log("radNow=%f, radNxt=%f", radNow, radNxt);
 
       ctx.beginPath();
-      ctx.lineTo(ctrX, ctrY, x1, y1);
-      ctx.arc(ctrX, ctrY, radius, radNow, radNxt);
-      ctx.lineTo(x2, y2, ctrX, ctrY);
+      ctx.lineTo(0, 0, x1, y1);
+      ctx.arc(0, 0, radius, 0, radPerSegm);
+      ctx.lineTo(x2, y2, 0, 0);
 
       fillColorIdx = (i % WEDGE_BG_COLORS.length);
       ctx.fillStyle = WEDGE_BG_COLORS[fillColorIdx];
       // console.log("fillColorIdx=%d, fillColor=%s", fillColorIdx, ctx.fillStyle);
       ctx.fill();
 
-      radNow += radPerSegm;
+      // rotate canvas to do next wedge!
+      ctx.rotate(radPerSegm);
     }
+
+    ctx.restore();
   }
 
   function draw() {
     const canvas = document.getElementById('spinner');
     if (canvas.getContext) {
       const ctx = canvas.getContext('2d');
-
-      const midPt = CANVAS_WIDTH / 2;
       const numDivisions = 10;
-      drawWheel(ctx, numDivisions, midPt, midPt, WHEEL_RADIUS);
+
+      drawWheel(ctx, numDivisions, CANVAS_WIDTH, WHEEL_RADIUS, g_rot_offset);
     }
   }
 </script>
