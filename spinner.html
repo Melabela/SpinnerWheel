@@ -25,6 +25,11 @@
     '#CFBAF0'   // purple
   ];
 
+  const WEDGE_NUM_TEXT_COLOR = '#707070';
+  const WEDGE_NUM_TEXT_FONT = '16px serif';
+
+  const POINTER_COLOR = 'red';
+
   // globals
   let gb_wheel_spinning;
   let g_rot_offset;
@@ -54,51 +59,103 @@
     return [x, y];
   }
 
+  function drawWheelWedge(ctx, idx, radius, rdWedgeAngle) {
+    ctx.save();
+
+    // Repeat:
+    // - Draw wedge, w/ one edge on horizontal y=0
+    // - Rotate entire context, setup for next wedge
+    //
+    // (0,0)   r
+    //  .----------. (x1,y1) = (r,0)
+    //    \       /
+    //      \    /
+    //        \ /
+    //         . (x2,y2)
+
+    const [x1, y1] = [radius, 0];
+    const [x2, y2] = calcPointOnCircle(radius, rdWedgeAngle);
+    // console.log("pt1=(%f, %f)", x1, y1);
+    // console.log("pt2=(%f, %f)", x2, y2);
+
+    ctx.beginPath();
+    ctx.lineTo(0, 0, x1, y1);
+    ctx.arc(0, 0, radius, 0, rdWedgeAngle);
+    ctx.lineTo(x2, y2, 0, 0);
+
+    const fillColorIdx = (idx % WEDGE_BG_COLORS.length);
+    ctx.fillStyle = WEDGE_BG_COLORS[fillColorIdx];
+    // console.log("fillColorIdx=%d, fillColor=%s", fillColorIdx, ctx.fillStyle);
+    ctx.fill();
+
+    // if not spinning, also print wedge number
+    if (!gb_wheel_spinning) {
+      const segNum = idx + 1;
+      const xText = (segNum >= 10) ? x1 * 0.6 : x1 * 0.7;
+      const yText = y2 / 2;
+
+      ctx.font = WEDGE_NUM_TEXT_FONT;
+      ctx.fillStyle = WEDGE_NUM_TEXT_COLOR;
+      ctx.fillText(segNum, xText, yText);
+    }
+
+    ctx.restore();
+  }
+
+  function drawWheelPointer(ctx, canv_width, radius) {
+    ctx.save();
+
+    const xWheelTop = canv_width / 2;
+    const yWheelTop = (canv_width / 2) - radius;
+
+    // move origin to top of wheel, at "12-oClock" position
+    ctx.translate(xWheelTop, yWheelTop);
+
+    const yTriglBtm = 15;
+    const yTriglTop = -15;  // most of it sits above wheel
+    const xTriglHalfWidth = 8;
+
+    // draw 'pointer' = down-pointing triangle
+    ctx.beginPath();
+    ctx.lineTo(0, yTriglBtm, xTriglHalfWidth, yTriglTop);
+    ctx.lineTo(xTriglHalfWidth, yTriglTop, -xTriglHalfWidth, yTriglTop);
+    ctx.lineTo(-xTriglHalfWidth, yTriglTop, 0, yTriglBtm);
+
+    ctx.fillStyle = POINTER_COLOR;
+    ctx.fill();
+
+    ctx.restore();
+  }
+
   function drawWheel(ctx, numDivisions, canv_width, radius, rot_offset=0.0) {
-    ctx.save()
+    ctx.save();
     ctx.clearRect(0, 0, canv_width, canv_width);
 
     // move origin to middle of canvas & center of circle,
     //  makes circular operations easier
+    ctx.save();
+
     const midPt = canv_width / 2;
     ctx.translate(midPt, midPt);
 
     // apply spin offset before we start drawing this frame
     ctx.rotate(rot_offset);
 
-    // for now, have equal segments
-    const radPerSegm = Math.PI * 2 / numDivisions;
-    // console.log("rot_offset=%f, radPerSegm=%f", rot_offset, radPerSegm);
+    // for now, have equal-sized wedges
+    const rdWedgeAngle = Math.PI * 2 / numDivisions;
+    // console.log("rot_offset=%f, rdWedgeAngle=%f", rot_offset, rdWedgeAngle);
 
-    for (i=0; i<numDivisions; i++) {
-      // Repeat:
-      // - Draw wedge, w/ one edge on horizontal y=0
-      // - Rotate entire context, setup for next wedge
-      //
-      // (0,0)   r
-      //  .----------. (x1,y1) = (r,0)
-      //    \       /
-      //      \    /
-      //        \ /
-      //         . (x2,y2)
-      const [x1, y1] = [radius, 0];
-      const [x2, y2] = calcPointOnCircle(radius, radPerSegm);
-      // console.log("pt1=(%f, %f)", x1, y1);
-      // console.log("pt2=(%f, %f)", x2, y2);
-
-      ctx.beginPath();
-      ctx.lineTo(0, 0, x1, y1);
-      ctx.arc(0, 0, radius, 0, radPerSegm);
-      ctx.lineTo(x2, y2, 0, 0);
-
-      fillColorIdx = (i % WEDGE_BG_COLORS.length);
-      ctx.fillStyle = WEDGE_BG_COLORS[fillColorIdx];
-      // console.log("fillColorIdx=%d, fillColor=%s", fillColorIdx, ctx.fillStyle);
-      ctx.fill();
+    for (idx=0; idx<numDivisions; idx++) {
+      drawWheelWedge(ctx, idx, radius, rdWedgeAngle);
 
       // rotate canvas to do next wedge!
-      ctx.rotate(radPerSegm);
+      ctx.rotate(rdWedgeAngle);
     }
+
+    // return to normal canvas; origin = top-left corner, etc.
+    ctx.restore();
+
+    drawWheelPointer(ctx, canv_width, radius);
 
     ctx.restore();
   }
