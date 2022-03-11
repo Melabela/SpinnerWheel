@@ -6,7 +6,8 @@
   const WHEEL_RADIUS = 100;  // diameter = 200
 
   // assuming 60 FPS - one full rotation every 2 seconds
-  const ROTATION_PER_FRAME = Math.PI / 60;
+  //  Note:  seems like +'ve radians are clockwise, prob. b/c +y is Down
+  const ROTATION_PER_FRAME = -(Math.PI / 60);
 
   // COLOR PALETTES
   // Wedge BG, lighter colors
@@ -25,7 +26,8 @@
   ];
 
   // globals
-  let g_rot_offset = 0.0;
+  let gb_wheel_spinning;
+  let g_rot_offset;
 
   // FYI - instead of manually calculating rotations,
   //  use Canvas Transformations as shown in MDN 'Clock' example:
@@ -112,16 +114,35 @@
       // update rotation offset, to make spin
       g_rot_offset += ROTATION_PER_FRAME;
       if (g_rot_offset >= (Math.PI * 2)) {
-        g_rot_offset = 0.0;
+        g_rot_offset -= (Math.PI * 2);
+      }
+      if (g_rot_offset < 0.0) {
+        g_rot_offset += (Math.PI * 2);
       }
 
-      window.requestAnimationFrame(draw);
+      if (gb_wheel_spinning) {
+        window.requestAnimationFrame(draw);
+      }
     }
   }
 
   function init() {
-    g_rot_offset = 0.0;
-    window.requestAnimationFrame(draw);
+    gb_wheel_spinning = false;
+    g_rot_offset = -(Math.PI / 2);  // start w/ 90 deg, make '1' at top
+
+    draw();  // call once to show wheel
+  }
+
+  // invert flag, and update button text
+  function btnOnClick_Spin() {
+    gb_wheel_spinning = !gb_wheel_spinning;
+
+    const btn_spin = document.getElementById('btn_spin');
+    btn_spin.innerHTML = (gb_wheel_spinning) ? 'Stop...' : 'Spin!';
+
+    if (gb_wheel_spinning) {
+      window.requestAnimationFrame(draw);
+    }
   }
 </script>
 </head>
@@ -130,7 +151,13 @@
 
 <h1>Spinner</h1>
 
+<p>
 <canvas id="spinner" width=300 height=300></canvas>
+</p>
+
+<p>
+<button type="button" id="btn_spin" onclick="btnOnClick_Spin();">Spin!</button>
+</p>
 
 </body>
 </html>
