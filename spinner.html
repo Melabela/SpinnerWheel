@@ -316,10 +316,24 @@
     draw();  // call once to show wheel
   }
 
+  function set_wedge_num_cell_bg() {
+    const ELEM_PREFIX = 'wedge_num_';
+    for (let i=1; i<=MAX_WEDGES; i++) {
+      const id_elem = ELEM_PREFIX + i;
+      const bg_color = WEDGE_BG_COLORS[i];
+
+      const elem = document.getElementById(id_elem);
+      if (elem) {
+        elem.style.backgroundColor = bg_color;
+      }
+    }
+  }
+
   function init() {
     gb_wheel_spinning = false;
     g_rot_offset = -(Math.PI / 2);  // start w/ 90 deg, make '1' at top
 
+    set_wedge_num_cell_bg();
     read_settings();
     draw();  // call once to show wheel
   }
@@ -351,52 +365,52 @@
         <th>Rel. Weight</th>
     </tr>
     <tr>
-        <td class="align_center">1</td>
+        <td class="align_center" id="wedge_num_1">1</td>
         <td><input type="checkbox" checked=true id="cb_isOn_1" onchange="inputOnChange_Settings();" /></td>
         <td><input type="number" value="1" min="1" max="9" id="num_weight_1" onchange="inputOnChange_Settings();" /></td>
     </tr>
     <tr>
-        <td class="align_center">2</td>
+        <td class="align_center" id="wedge_num_2">2</td>
         <td><input type="checkbox" checked=true id="cb_isOn_2" onchange="inputOnChange_Settings();" /></td>
         <td><input type="number" value="1" min="1" max="9" id="num_weight_2" onchange="inputOnChange_Settings();" /></td>
     </tr>
     <tr>
-        <td class="align_center">3</td>
+        <td class="align_center" id="wedge_num_3">3</td>
         <td><input type="checkbox" checked=true id="cb_isOn_3" onchange="inputOnChange_Settings();" /></td>
         <td><input type="number" value="1" min="1" max="9" id="num_weight_3" onchange="inputOnChange_Settings();" /></td>
     </tr>
     <tr>
-        <td class="align_center">4</td>
+        <td class="align_center" id="wedge_num_4">4</td>
         <td><input type="checkbox" checked=true id="cb_isOn_4" onchange="inputOnChange_Settings();" /></td>
         <td><input type="number" value="1" min="1" max="9" id="num_weight_4" onchange="inputOnChange_Settings();" /></td>
     </tr>
     <tr>
-        <td class="align_center">5</td>
+        <td class="align_center" id="wedge_num_5">5</td>
         <td><input type="checkbox" checked=true id="cb_isOn_5" onchange="inputOnChange_Settings();" /></td>
         <td><input type="number" value="1" min="1" max="9" id="num_weight_5" onchange="inputOnChange_Settings();" /></td>
     </tr>
     <tr>
-        <td class="align_center">6</td>
+        <td class="align_center" id="wedge_num_6">6</td>
         <td><input type="checkbox" checked=true id="cb_isOn_6" onchange="inputOnChange_Settings();" /></td>
         <td><input type="number" value="1" min="1" max="9" id="num_weight_6" onchange="inputOnChange_Settings();" /></td>
     </tr>
     <tr>
-        <td class="align_center">7</td>
+        <td class="align_center" id="wedge_num_7">7</td>
         <td><input type="checkbox" checked=true id="cb_isOn_7" onchange="inputOnChange_Settings();" /></td>
         <td><input type="number" value="1" min="1" max="9" id="num_weight_7" onchange="inputOnChange_Settings();" /></td>
     </tr>
     <tr>
-        <td class="align_center">8</td>
+        <td class="align_center" id="wedge_num_8">8</td>
         <td><input type="checkbox" checked=true id="cb_isOn_8" onchange="inputOnChange_Settings();" /></td>
         <td><input type="number" value="1" min="1" max="9" id="num_weight_8" onchange="inputOnChange_Settings();" /></td>
     </tr>
     <tr>
-        <td class="align_center">9</td>
+        <td class="align_center" id="wedge_num_9">9</td>
         <td><input type="checkbox" checked=true id="cb_isOn_9" onchange="inputOnChange_Settings();" /></td>
         <td><input type="number" value="1" min="1" max="9" id="num_weight_9" onchange="inputOnChange_Settings();" /></td>
     </tr>
     <tr>
-        <td class="align_center">10</td>
+        <td class="align_center" id="wedge_num_10">10</td>
         <td><input type="checkbox" checked=true id="cb_isOn_10" onchange="inputOnChange_Settings();" /></td>
         <td><input type="number" value="1" min="1" max="9" id="num_weight_10" onchange="inputOnChange_Settings();" /></td>
     </tr>
