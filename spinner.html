@@ -22,6 +22,9 @@
   //  Note:  seems like +'ve radians are clockwise, prob. b/c +y is Down
   const ROTATION_PER_FRAME = -(Math.PI / 60);
 
+  // max number of wedges
+  const MAX_WEDGES = 10;
+
   // COLOR PALETTES
   // Wedge BG, lighter colors
   // https://coolors.co/palette/fbf8cc-fde4cf-ffcfd2-f1c0e8-cfbaf0-a3c4f3-90dbf4-8eecf5-98f5e1-b9fbc0
@@ -46,6 +49,7 @@
   // globals
   let gb_wheel_spinning;
   let g_rot_offset;
+  let g_wedge_settings;
 
   // FYI - instead of manually calculating rotations,
   //  use Canvas Transformations as shown in MDN 'Clock' example:
@@ -203,6 +207,58 @@
     draw();  // call once to show wheel
   }
 
+  const SETTINGS_ELEM_ID_PREFIXES = [
+    'cb_isOn_',
+    'num_weight_'
+  ];
+
+  function settings_elems_enable(set_on) {
+    for (let i=1; i<=MAX_WEDGES; i++) {
+      for (const prefix of SETTINGS_ELEM_ID_PREFIXES) {
+        const elem_id = prefix + i;
+        const elem = document.getElementById(elem_id);
+        if (elem) {
+          elem.disabled = !set_on;
+        }
+      }
+    }
+  }
+
+  function read_settings() {
+    const settings = {};
+
+    for (let i=1; i<=MAX_WEDGES; i++) {
+      const id_elem_isOn = SETTINGS_ELEM_ID_PREFIXES[0] + i;
+      const id_elem_weight = SETTINGS_ELEM_ID_PREFIXES[1] + i;
+
+      let isOn = true;
+      const elem_isOn = document.getElementById(id_elem_isOn);
+      if (elem_isOn) {
+        isOn = elem_isOn.checked;
+      }
+
+      let weight = 1;
+      const elem_weight = document.getElementById(id_elem_weight);
+      if (elem_weight) {
+        weight = +elem_weight.value;
+      }
+
+      const wedge_params = {
+        isOn,
+        weight,
+      };
+      settings[i] = wedge_params;
+    }
+
+    console.log('settings: {}', settings);
+    g_wedge_settings = settings;
+  }
+
+  function inputOnChange_Settings() {
+    read_settings();
+    draw();
+  }
+
   // invert flag, and update button text
   function btnOnClick_Spin() {
     gb_wheel_spinning = !gb_wheel_spinning;
@@ -210,7 +266,10 @@
     const btn_spin = document.getElementById('btn_spin');
     btn_spin.innerHTML = (gb_wheel_spinning) ? 'Stop...' : 'Spin!';
 
+    settings_elems_enable(!gb_wheel_spinning);
+
     if (gb_wheel_spinning) {
+      read_settings();
       window.requestAnimationFrame(draw);
     }
   }
