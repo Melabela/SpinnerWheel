@@ -29,16 +29,17 @@
   // Wedge BG, lighter colors
   // https://coolors.co/palette/fbf8cc-fde4cf-ffcfd2-f1c0e8-cfbaf0-a3c4f3-90dbf4-8eecf5-98f5e1-b9fbc0
   const WEDGE_BG_COLORS = [
-    '#F1C0E8',  // pink-red
-    '#FFCFD2',  // red
-    '#FDE4CF',  // orange
-    '#FBF8CC',  // yellow
-    '#B9FBC0',  // light-green
-    '#98F5E1',  // pink-red
-    '#8EECF5',  // light-blue (cyan)
-    '#90DBF4',  // med-blue
-    '#A3C4F3',  // dark-blue
-    '#CFBAF0'   // purple
+    '#000000',  // [ 0] placeholder, NOT USED
+    '#F1C0E8',  // [ 1] pink-red
+    '#FFCFD2',  // [ 2] red
+    '#FDE4CF',  // [ 3] orange
+    '#FBF8CC',  // [ 4] yellow
+    '#B9FBC0',  // [ 5] light-green
+    '#98F5E1',  // [ 6] pink-red
+    '#8EECF5',  // [ 7] light-blue (cyan)
+    '#90DBF4',  // [ 8] med-blue
+    '#A3C4F3',  // [ 9] dark-blue
+    '#CFBAF0'   // [10] purple
   ];
 
   const WEDGE_NUM_TEXT_COLOR = '#707070';
@@ -107,7 +108,7 @@
 
     // if not spinning, also print wedge number
     if (!gb_wheel_spinning) {
-      const segNum = idx + 1;
+      const segNum = idx;
       const xText = (segNum >= 10) ? x1 * 0.6 : x1 * 0.7;
       const yText = y2 / 2;
 
@@ -144,7 +145,7 @@
     ctx.restore();
   }
 
-  function drawWheel(ctx, numDivisions, canv_width, radius, rot_offset=0.0) {
+  function drawWheel(ctx, canv_width, radius, rot_offset=0.0) {
     ctx.save();
     ctx.clearRect(0, 0, canv_width, canv_width);
 
@@ -158,15 +159,19 @@
     // apply spin offset before we start drawing this frame
     ctx.rotate(rot_offset);
 
-    // for now, have equal-sized wedges
-    const rdWedgeAngle = Math.PI * 2 / numDivisions;
-    // console.log("rot_offset=%f, rdWedgeAngle=%f", rot_offset, rdWedgeAngle);
+    // console.log("rot_offset=%f", rot_offset);
 
-    for (let idx=0; idx<numDivisions; idx++) {
-      drawWheelWedge(ctx, idx, radius, rdWedgeAngle);
+    for (let idx=1; idx<=MAX_WEDGES; idx++) {
+      const wedgeSettings = g_wedge_settings[idx];
+      // console.log(`idx=${idx}, wedgeSettings=${JSON.stringify(wedgeSettings)}`);
 
-      // rotate canvas to do next wedge!
-      ctx.rotate(rdWedgeAngle);
+      if (wedgeSettings.isOn) {
+        const rdWedgeAngle = wedgeSettings.angleInRads;
+        drawWheelWedge(ctx, idx, radius, rdWedgeAngle);
+
+        // rotate canvas to do next wedge!
+        ctx.rotate(rdWedgeAngle);
+      }
     }
 
     // return to normal canvas; origin = top-left corner, etc.
@@ -181,30 +186,22 @@
     const canvas = document.getElementById('spinner');
     if (canvas.getContext) {
       const ctx = canvas.getContext('2d');
-      const numDivisions = 10;
 
-      drawWheel(ctx, numDivisions, CANVAS_WIDTH, WHEEL_RADIUS, g_rot_offset);
-
-      // update rotation offset, to make spin
-      g_rot_offset += ROTATION_PER_FRAME;
-      if (g_rot_offset >= (Math.PI * 2)) {
-        g_rot_offset -= (Math.PI * 2);
-      }
-      if (g_rot_offset < 0.0) {
-        g_rot_offset += (Math.PI * 2);
-      }
+      drawWheel(ctx, CANVAS_WIDTH, WHEEL_RADIUS, g_rot_offset);
 
       if (gb_wheel_spinning) {
+        // update rotation offset, to make spin
+        g_rot_offset += ROTATION_PER_FRAME;
+        if (g_rot_offset >= (Math.PI * 2)) {
+          g_rot_offset -= (Math.PI * 2);
+        }
+        if (g_rot_offset < 0.0) {
+          g_rot_offset += (Math.PI * 2);
+        }
+
         window.requestAnimationFrame(draw);
       }
     }
-  }
-
-  function init() {
-    gb_wheel_spinning = false;
-    g_rot_offset = -(Math.PI / 2);  // start w/ 90 deg, make '1' at top
-
-    draw();  // call once to show wheel
   }
 
   const SETTINGS_ELEM_ID_PREFIXES = [
@@ -226,7 +223,9 @@
 
   function read_settings() {
     const settings = {};
+    let total_weight = 0;
 
+    // 1st loop, read values from elements
     for (let i=1; i<=MAX_WEDGES; i++) {
       const id_elem_isOn = SETTINGS_ELEM_ID_PREFIXES[0] + i;
       const id_elem_weight = SETTINGS_ELEM_ID_PREFIXES[1] + i;
@@ -243,11 +242,31 @@
         weight = +elem_weight.value;
       }
 
+      if (isOn) {
+        total_weight += weight;
+      }
+
       const wedge_params = {
         isOn,
         weight,
       };
       settings[i] = wedge_params;
+    }
+
+    // 2nd loop, compute angles based on relative weights
+    for (let i=1; i<=MAX_WEDGES; i++) {
+      if (settings[i].isOn) {
+        const weight = settings[i].weight;
+        const ratio = (weight / total_weight);
+        const angleInRads = ratio * (Math.PI * 2);
+
+        settings[i].ratio = ratio;
+        settings[i].angleInRads = angleInRads;
+      }
+      else {
+        settings[i].ratio = 0.0;
+        settings[i].angleInRads = 0.0;
+      }
     }
 
     console.log('settings: {}', settings);
@@ -272,6 +291,14 @@
       read_settings();
       window.requestAnimationFrame(draw);
     }
+  }
+
+  function init() {
+    gb_wheel_spinning = false;
+    g_rot_offset = -(Math.PI / 2);  // start w/ 90 deg, make '1' at top
+
+    read_settings();
+    draw();  // call once to show wheel
   }
 </script>
 </head>
