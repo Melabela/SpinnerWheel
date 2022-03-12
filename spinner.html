@@ -293,6 +293,29 @@
     }
   }
 
+  function settings_reset() {
+    for (let i=1; i<=MAX_WEDGES; i++) {
+      const id_elem_isOn = SETTINGS_ELEM_ID_PREFIXES[0] + i;
+      const id_elem_weight = SETTINGS_ELEM_ID_PREFIXES[1] + i;
+
+      const elem_isOn = document.getElementById(id_elem_isOn);
+      if (elem_isOn) {
+        elem_isOn.checked = true;
+      }
+
+      const elem_weight = document.getElementById(id_elem_weight);
+      if (elem_weight) {
+        elem_weight.value = 1;
+      }
+    }
+  }
+
+  function btnOnClick_Reset() {
+    settings_reset();
+    read_settings();
+    draw();  // call once to show wheel
+  }
+
   function init() {
     gb_wheel_spinning = false;
     g_rot_offset = -(Math.PI / 2);  // start w/ 90 deg, make '1' at top
@@ -316,6 +339,10 @@
 <hr />
 
 <h2>Settings</h2>
+
+</p>
+<button type="button" id="btn_reset" onclick="btnOnClick_Reset();">Reset</button>
+</p>
 
 <table id="tbl_wedge_settings">
     <tr>
