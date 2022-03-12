@@ -1,8 +1,21 @@
 <html>
 <head>
+<style type="text/css" media="all">
+    #btn_spin {
+        margin-left: 80px;
+        font-size: 16px;
+    }
+    p {
+        margin-top: 8px;
+        margin-bottom: 8px;
+    }
+    .align_center {
+        text-align: center;
+    }
+</style>
 <script type="text/javascript">
   // SIZE CONSTANTS
-  const CANVAS_WIDTH = 300;  // height same; assume using square box
+  const CANVAS_WIDTH = 220;  // height same; assume using square box
   const WHEEL_RADIUS = 100;  // diameter = 200
 
   // assuming 60 FPS - one full rotation every 2 seconds
@@ -145,7 +158,7 @@
     const rdWedgeAngle = Math.PI * 2 / numDivisions;
     // console.log("rot_offset=%f, rdWedgeAngle=%f", rot_offset, rdWedgeAngle);
 
-    for (idx=0; idx<numDivisions; idx++) {
+    for (let idx=0; idx<numDivisions; idx++) {
       drawWheelWedge(ctx, idx, radius, rdWedgeAngle);
 
       // rotate canvas to do next wedge!
@@ -208,13 +221,74 @@
 
 <h1>Spinner</h1>
 
-<p>
-<canvas id="spinner" width=300 height=300></canvas>
-</p>
+<canvas id="spinner" width=220 height=220></canvas>
 
 <p>
 <button type="button" id="btn_spin" onclick="btnOnClick_Spin();">Spin!</button>
 </p>
+
+<hr />
+
+<h2>Settings</h2>
+
+<table id="tbl_wedge_settings">
+    <tr>
+        <th>Wedge #</th>
+        <th>On?</th>
+        <th>Rel. Weight</th>
+    </tr>
+    <tr>
+        <td class="align_center">1</td>
+        <td><input type="checkbox" checked=true id="cb_isOn_1" onchange="inputOnChange_Settings();" /></td>
+        <td><input type="number" value="1" min="1" max="9" id="num_weight_1" onchange="inputOnChange_Settings();" /></td>
+    </tr>
+    <tr>
+        <td class="align_center">2</td>
+        <td><input type="checkbox" checked=true id="cb_isOn_2" onchange="inputOnChange_Settings();" /></td>
+        <td><input type="number" value="1" min="1" max="9" id="num_weight_2" onchange="inputOnChange_Settings();" /></td>
+    </tr>
+    <tr>
+        <td class="align_center">3</td>
+        <td><input type="checkbox" checked=true id="cb_isOn_3" onchange="inputOnChange_Settings();" /></td>
+        <td><input type="number" value="1" min="1" max="9" id="num_weight_3" onchange="inputOnChange_Settings();" /></td>
+    </tr>
+    <tr>
+        <td class="align_center">4</td>
+        <td><input type="checkbox" checked=true id="cb_isOn_4" onchange="inputOnChange_Settings();" /></td>
+        <td><input type="number" value="1" min="1" max="9" id="num_weight_4" onchange="inputOnChange_Settings();" /></td>
+    </tr>
+    <tr>
+        <td class="align_center">5</td>
+        <td><input type="checkbox" checked=true id="cb_isOn_5" onchange="inputOnChange_Settings();" /></td>
+        <td><input type="number" value="1" min="1" max="9" id="num_weight_5" onchange="inputOnChange_Settings();" /></td>
+    </tr>
+    <tr>
+        <td class="align_center">6</td>
+        <td><input type="checkbox" checked=true id="cb_isOn_6" onchange="inputOnChange_Settings();" /></td>
+        <td><input type="number" value="1" min="1" max="9" id="num_weight_6" onchange="inputOnChange_Settings();" /></td>
+    </tr>
+    <tr>
+        <td class="align_center">7</td>
+        <td><input type="checkbox" checked=true id="cb_isOn_7" onchange="inputOnChange_Settings();" /></td>
+        <td><input type="number" value="1" min="1" max="9" id="num_weight_7" onchange="inputOnChange_Settings();" /></td>
+    </tr>
+    <tr>
+        <td class="align_center">8</td>
+        <td><input type="checkbox" checked=true id="cb_isOn_8" onchange="inputOnChange_Settings();" /></td>
+        <td><input type="number" value="1" min="1" max="9" id="num_weight_8" onchange="inputOnChange_Settings();" /></td>
+    </tr>
+    <tr>
+        <td class="align_center">9</td>
+        <td><input type="checkbox" checked=true id="cb_isOn_9" onchange="inputOnChange_Settings();" /></td>
+        <td><input type="number" value="1" min="1" max="9" id="num_weight_9" onchange="inputOnChange_Settings();" /></td>
+    </tr>
+    <tr>
+        <td class="align_center">10</td>
+        <td><input type="checkbox" checked=true id="cb_isOn_10" onchange="inputOnChange_Settings();" /></td>
+        <td><input type="number" value="1" min="1" max="9" id="num_weight_10" onchange="inputOnChange_Settings();" /></td>
+    </tr>
+</table>
+
 
 </body>
 </html>
