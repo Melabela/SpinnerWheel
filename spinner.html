@@ -210,6 +210,11 @@
   ];
 
   function settings_elems_enable(set_on) {
+    const elem_reset = document.getElementById('btn_reset');
+    if (elem_reset) {
+      elem_reset.disabled = !set_on;
+    }
+
     for (let i=1; i<=MAX_WEDGES; i++) {
       for (const prefix of SETTINGS_ELEM_ID_PREFIXES) {
         const elem_id = prefix + i;
