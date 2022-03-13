@@ -223,7 +223,6 @@
 
   function read_settings() {
     const settings = {};
-    let total_weight = 0;
 
     // 1st loop, read values from elements
     for (let i=1; i<=MAX_WEDGES; i++) {
@@ -242,39 +241,86 @@
         weight = +elem_weight.value;
       }
 
-      if (isOn) {
-        total_weight += weight;
-      }
-
       const wedge_params = {
         isOn,
         weight,
       };
       settings[i] = wedge_params;
     }
-
-    // 2nd loop, compute angles based on relative weights
-    for (let i=1; i<=MAX_WEDGES; i++) {
-      if (settings[i].isOn) {
-        const weight = settings[i].weight;
-        const ratio = (weight / total_weight);
-        const angleInRads = ratio * (Math.PI * 2);
-
-        settings[i].ratio = ratio;
-        settings[i].angleInRads = angleInRads;
-      }
-      else {
-        settings[i].ratio = 0.0;
-        settings[i].angleInRads = 0.0;
-      }
-    }
-
     console.log('settings: {}', settings);
     g_wedge_settings = settings;
   }
 
+  function compute_wedge_angles() {
+    // 1st loop, get sum of (active) weights
+    let total_weight = 0;
+    for (let i=1; i<=MAX_WEDGES; i++) {
+      if (g_wedge_settings[i].isOn) {
+        total_weight += g_wedge_settings[i].weight;
+      }
+    }
+
+    // 2nd loop, compute angles based on relative weights
+    for (let i=1; i<=MAX_WEDGES; i++) {
+      const settings = g_wedge_settings[i];
+      if (settings.isOn) {
+        const ratio = (settings.weight / total_weight);
+        const angleInRads = ratio * (Math.PI * 2);
+
+        settings.ratio = ratio;
+        settings.angleInRads = angleInRads;
+      }
+      else {
+        settings.ratio = 0.0;
+        settings.angleInRads = 0.0;
+      }
+    }
+  }
+
+  // assemble 'isOn' and 'weight' per wedge as delimited string
+  //  e.g. output = "1.3/0.2/1.1/0.1/..."
+  function encode_settings(settings) {
+    const out_list = [];
+    for (let i=1; i<=MAX_WEDGES; i++) {
+      const a = settings[i].isOn ? 1 : 0;
+      const b = settings[i].weight;
+      out_list.push(`${a}.${b}`);
+    }
+    const out_str = out_list.join('/');
+    return out_str;
+  }
+
+  // reverse of encode_settings()
+  //  e.g. input = "1.3/0.2/1.1/0.1/..."
+  // disassemble as [1] = 'isOn'.'weight' / [2] / [3] / ...
+  function decode_settings(str) {
+    const out_settings = {};
+
+    const items = str.split('/');
+    for (let i=0; i<MAX_WEDGES; i++) {
+      const [a, b] = items[i].split('.');
+      const isOn = (+a != 0);
+      const weight = +b;
+      out_settings[i+1] = {
+        isOn,
+        weight
+      };
+    }
+
+    return out_settings;
+  }
+
   function inputOnChange_Settings() {
     read_settings();
+    compute_wedge_angles();
+
+    // -- TESTING --
+    const encode_str = encode_settings(g_wedge_settings);
+    // console.log(encode_str);
+    const decode_set = decode_settings(encode_str);
+    // console.log(decode_set);
+    // -- TESTING --
+
     draw();
   }
 
@@ -288,7 +334,6 @@
     settings_elems_enable(!gb_wheel_spinning);
 
     if (gb_wheel_spinning) {
-      read_settings();
       window.requestAnimationFrame(draw);
     }
   }
@@ -313,7 +358,8 @@
   function btnOnClick_Reset() {
     settings_reset();
     read_settings();
-    draw();  // call once to show wheel
+    compute_wedge_angles();
+    draw();  // call once to update wheel
   }
 
   function set_wedge_num_cell_bg() {
@@ -335,6 +381,7 @@
 
     set_wedge_num_cell_bg();
     read_settings();
+    compute_wedge_angles();
     draw();  // call once to show wheel
   }
 </script>
