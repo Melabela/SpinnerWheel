@@ -277,30 +277,31 @@
     }
   }
 
-  // assemble 'isOn' and 'weight' per wedge as delimited string
-  //  e.g. output = "1.3/0.2/1.1/0.1/..."
+  // encode 'isOn' and 'weight' per wedge into ascii-char
+  //  e.g. (1, 3) -> binary(011_<1-bit: isOn>_<4-bit: weight>)
+  //        = 011_1_0011 = hex(0x73) = ascii('s')
   function encode_settings(settings) {
-    const out_list = [];
+    const out_chars = [];
     for (let i=1; i<=MAX_WEDGES; i++) {
-      const a = settings[i].isOn ? 1 : 0;
-      const b = settings[i].weight;
-      out_list.push(`${a}.${b}`);
+      const isOn = settings[i].isOn;
+      const weight = settings[i].weight;
+      const ascii_val = 0x60 + (isOn ? 0x10 : 0) + (weight & 0xf);
+      out_chars.push(String.fromCharCode(ascii_val));
     }
-    const out_str = out_list.join('/');
+    const out_str = out_chars.join('');
     return out_str;
   }
 
   // reverse of encode_settings()
-  //  e.g. input = "1.3/0.2/1.1/0.1/..."
+  //  e.g. input = "aqqqqavqcq"
   // disassemble as [1] = 'isOn'.'weight' / [2] / [3] / ...
   function decode_settings(str) {
     const out_settings = {};
 
-    const items = str.split('/');
     for (let i=0; i<MAX_WEDGES; i++) {
-      const [a, b] = items[i].split('.');
-      const isOn = (+a != 0);
-      const weight = +b;
+      const ascii_val = str.charCodeAt(i);
+      const isOn = ((ascii_val & 0x10) != 0);
+      const weight = (ascii_val & 0xf);
       out_settings[i+1] = {
         isOn,
         weight
@@ -316,9 +317,9 @@
 
     // -- TESTING --
     const encode_str = encode_settings(g_wedge_settings);
-    // console.log(encode_str);
+    console.log('encode_str:', encode_str);
     const decode_set = decode_settings(encode_str);
-    // console.log(decode_set);
+    console.log('decode_settings:', decode_set);
     // -- TESTING --
 
     draw();
@@ -338,6 +339,7 @@
     }
   }
 
+  // reset all wedge settings to: (on, weight=1)
   function settings_reset() {
     for (let i=1; i<=MAX_WEDGES; i++) {
       const id_elem_isOn = SETTINGS_ELEM_ID_PREFIXES[0] + i;
@@ -380,6 +382,7 @@
     g_rot_offset = -(Math.PI / 2);  // start w/ 90 deg, make '1' at top
 
     set_wedge_num_cell_bg();
+    settings_reset();
     read_settings();
     compute_wedge_angles();
     draw();  // call once to show wheel
