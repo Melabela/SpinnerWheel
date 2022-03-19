@@ -22,6 +22,9 @@
   //  Note:  seems like +'ve radians are clockwise, prob. b/c +y is Down
   const ROTATION_PER_FRAME = -(Math.PI / 60);
 
+  // start w/ -90 deg, make '1' at top
+  const ROTATION_INIT_OFFSET = -(Math.PI / 2);
+
   // max number of wedges
   const MAX_WEDGES = 10;
 
@@ -49,8 +52,27 @@
 
   // globals
   let gb_wheel_spinning;
-  let g_rot_offset;
+  let g_rot_offset;  // angle offset for wheel spin
   let g_wedge_settings;
+
+  // utility fns
+  function areFloatsApproxEqual(a, b, maxOffset) {
+    const delta = Math.abs(a - b);
+    return delta <= Math.abs(maxOffset);
+  }
+
+  function normalizeAngle(angleRad) {
+    let outAngleRad = angleRad;
+
+    while (outAngleRad >= (Math.PI * 2)) {
+      outAngleRad -= (Math.PI * 2);
+    }
+    while (outAngleRad < 0.0) {
+      outAngleRad += (Math.PI * 2);
+    }
+
+    return outAngleRad;
+  }
 
   // FYI - instead of manually calculating rotations,
   //  use Canvas Transformations as shown in MDN 'Clock' example:
@@ -120,12 +142,32 @@
     ctx.restore();
   }
 
-  // TEMP HACK FOR TESTING
-  // TODO: do actual check
-  let g_counter = 0;
+  // compare 'g_rot_offset' to angles of segment boundaries
   function isPointerNearSegBoundary() {
-    g_counter += 1;
-    return (g_counter & 0x10);
+    // pointer is at top-middle (12-o'clock)
+    // but rotation system starts at 3-o'clock
+    const adjRotationOffset = normalizeAngle(g_rot_offset - ROTATION_INIT_OFFSET);
+
+    const radMaxNearOffset = (Math.PI / 45);  // +/- 4 degrees
+    let bIsNearBoundary = false;
+
+    for (let idx=1; idx<=MAX_WEDGES; idx++) {
+      const wedgeSettings = g_wedge_settings[idx];
+      if (wedgeSettings.isOn) {
+        const areAnglesClose = areFloatsApproxEqual(
+          adjRotationOffset,
+          wedgeSettings.culumEndAngleInRads,
+          radMaxNearOffset);
+
+        if (areAnglesClose) {
+          // console.log(`anglesClose: idx=${idx}, adjRotOffset=${adjRotationOffset}, cumulEndAngle=${wedgeSettings.culumEndAngleInRads}`);
+          bIsNearBoundary = true;
+          break;
+        }
+      }
+    }
+
+    return bIsNearBoundary;
   }
 
   function drawWheelPointer(ctx, canv_width, radius) {
@@ -142,8 +184,9 @@
 
     // simulate effect when "flapper hits peg" in real wheel
     // do this by angle-ing bottom of pointer triangle
-    const xTriglBtm = (isPointerNearSegBoundary()) ? -15 : 0;
-    const yTriglBtm = (isPointerNearSegBoundary()) ? 10 : 15;
+    const bIsPointerFlap = isPointerNearSegBoundary();
+    const xTriglBtm = bIsPointerFlap ? -15 : 0;
+    const yTriglBtm = bIsPointerFlap ? 10 : 15;
 
     // draw 'pointer' = down-pointing triangle
     ctx.beginPath();
@@ -204,12 +247,8 @@
       if (gb_wheel_spinning) {
         // update rotation offset, to make spin
         g_rot_offset += ROTATION_PER_FRAME;
-        if (g_rot_offset >= (Math.PI * 2)) {
-          g_rot_offset -= (Math.PI * 2);
-        }
-        if (g_rot_offset < 0.0) {
-          g_rot_offset += (Math.PI * 2);
-        }
+        // normalize rotation offset into std radian range [0, 2*PI]
+        g_rot_offset = normalizeAngle(g_rot_offset);
 
         window.requestAnimationFrame(draw);
       }
@@ -264,7 +303,6 @@
       };
       settings[i] = wedge_params;
     }
-    console.log('settings: {}', settings);
     g_wedge_settings = settings;
   }
 
@@ -278,14 +316,17 @@
     }
 
     // 2nd loop, compute angles based on relative weights
+    let cumulAngleInRads = 0;
     for (let i=1; i<=MAX_WEDGES; i++) {
       const settings = g_wedge_settings[i];
       if (settings.isOn) {
         const ratio = (settings.weight / total_weight);
         const angleInRads = ratio * (Math.PI * 2);
+        cumulAngleInRads -= angleInRads;  // negative, b/c rotation counter-clockwise
 
         settings.ratio = ratio;
         settings.angleInRads = angleInRads;
+        settings.culumEndAngleInRads = normalizeAngle(cumulAngleInRads);
       }
       else {
         settings.ratio = 0.0;
@@ -331,6 +372,7 @@
   function inputOnChange_Settings() {
     read_settings();
     compute_wedge_angles();
+    console.log('settings: {}', g_wedge_settings);
 
     // -- TESTING --
     const encode_str = encode_settings(g_wedge_settings);
@@ -396,7 +438,7 @@
 
   function init() {
     gb_wheel_spinning = false;
-    g_rot_offset = -(Math.PI / 2);  // start w/ 90 deg, make '1' at top
+    g_rot_offset = ROTATION_INIT_OFFSET;
 
     set_wedge_num_cell_bg();
     settings_reset();
