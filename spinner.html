@@ -120,6 +120,14 @@
     ctx.restore();
   }
 
+  // TEMP HACK FOR TESTING
+  // TODO: do actual check
+  let g_counter = 0;
+  function isPointerNearSegBoundary() {
+    g_counter += 1;
+    return (g_counter & 0x10);
+  }
+
   function drawWheelPointer(ctx, canv_width, radius) {
     ctx.save();
 
@@ -129,15 +137,19 @@
     // move origin to top of wheel, at "12-oClock" position
     ctx.translate(xWheelTop, yWheelTop);
 
-    const yTriglBtm = 15;
     const yTriglTop = -15;  // most of it sits above wheel
     const xTriglHalfWidth = 8;
 
+    // simulate effect when "flapper hits peg" in real wheel
+    // do this by angle-ing bottom of pointer triangle
+    const xTriglBtm = (isPointerNearSegBoundary()) ? -15 : 0;
+    const yTriglBtm = (isPointerNearSegBoundary()) ? 10 : 15;
+
     // draw 'pointer' = down-pointing triangle
     ctx.beginPath();
-    ctx.lineTo(0, yTriglBtm, xTriglHalfWidth, yTriglTop);
+    ctx.lineTo(xTriglBtm, yTriglBtm, xTriglHalfWidth, yTriglTop);
     ctx.lineTo(xTriglHalfWidth, yTriglTop, -xTriglHalfWidth, yTriglTop);
-    ctx.lineTo(-xTriglHalfWidth, yTriglTop, 0, yTriglBtm);
+    ctx.lineTo(-xTriglHalfWidth, yTriglTop, xTriglBtm, yTriglBtm);
 
     ctx.fillStyle = POINTER_COLOR;
     ctx.fill();
