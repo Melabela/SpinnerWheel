@@ -309,6 +309,24 @@
     g_wedge_settings = settings;
   }
 
+  function apply_settings(settings) {
+    // update elements based on global_settings
+    for (let i=1; i<=MAX_WEDGES; i++) {
+      const id_elem_isOn = SETTINGS_ELEM_ID_PREFIXES[0] + i;
+      const id_elem_weight = SETTINGS_ELEM_ID_PREFIXES[1] + i;
+
+      const elem_isOn = document.getElementById(id_elem_isOn);
+      if (elem_isOn) {
+        elem_isOn.checked = settings[i].isOn;
+      }
+
+      const elem_weight = document.getElementById(id_elem_weight);
+      if (elem_weight) {
+        elem_weight.value = settings[i].weight;
+      }
+    }
+  }
+
   function compute_wedge_angles() {
     // 1st loop, get sum of (active) weights
     let total_weight = 0;
@@ -353,6 +371,38 @@
     return out_str;
   }
 
+  function validate_encoded_settings(str) {
+    // validate expectations for encoded string
+
+    // 1. is 10 characters exactly:
+    if (str.length != 10) {
+      return false;
+    }
+
+    // 2. contains only certain lowercase letters:
+    // (wedge disabled)
+    const charCode_a = 'a'.charCodeAt(0);
+    const charCode_i = 'i'.charCodeAt(0);
+    // (wedge enabled)
+    const charCode_q = 'q'.charCodeAt(0);
+    const charCode_y = 'y'.charCodeAt(0);
+
+    for (let i=0; i<str.length; i++) {
+      const charCodeAtIdx = str.charCodeAt(i);
+      if (charCodeAtIdx < charCode_a) {
+        return false;
+      }
+      if (charCodeAtIdx > charCode_y) {
+        return false;
+      }
+      if ((charCodeAtIdx > charCode_i) && (charCodeAtIdx < charCode_q)) {
+        return false;
+      }
+    }
+
+    return true;
+  }
+
   // reverse of encode_settings()
   //  e.g. input = "aqqqqavqcq"
   // disassemble as [1] = 'isOn'.'weight' / [2] / [3] / ...
@@ -370,6 +420,14 @@
     }
 
     return out_settings;
+  }
+
+  function load_txtbx_value() {
+    const elem = document.getElementById('txtbx_load');
+    if (elem) {
+      return elem.value;
+    }
+    return '';
   }
 
   function save_txtbx_update(str) {
@@ -482,8 +540,29 @@
   }
 
   function btnOnClick_LoadKey() {
-    // const decode_set = decode_settings(encode_str);
-    // console.log('decode_settings:', decode_set);
+    const encode_str = load_txtbx_value();
+    const isEncodeStrValid = validate_encoded_settings(encode_str);
+
+    const elem_loadKey_result = document.getElementById('text_loadKey_result');
+
+    if (isEncodeStrValid) {
+      const decode_set = decode_settings(encode_str);
+      console.log('decode_settings:', decode_set);
+      apply_settings(decode_set);
+      inputOnChange_Settings();
+
+      // set load_msg to success
+      if (elem_loadKey_result) {
+        elem_loadKey_result.innerHTML = 'Success';
+        elem_loadKey_result.style.color = 'green';
+      }
+    } else {
+      // set load_msg to error
+      if (elem_loadKey_result) {
+        elem_loadKey_result.innerHTML = 'Error';
+        elem_loadKey_result.style.color = 'red';
+      }
+    }
   }
 
   function init() {
@@ -511,7 +590,7 @@
 
 <h2>Settings</h2>
 
-</p>
+<p>
 <button type="button" id="btn_reset" onclick="btnOnClick_Reset();">Reset</button>
 <button type="button" id="btn_load" onclick="btnOnClick_Load();">Load...</button>
 <button type="button" id="btn_save" onclick="btnOnClick_Save();">Save...</button>
@@ -521,6 +600,7 @@
 <span class="text_dark_grey">Enter saved key:</span>
 <input type="text" id="txtbx_load" />
 <button type="button" id="btn_loadKey" onclick="btnOnClick_LoadKey();">Load Key</button>
+<span id="text_loadKey_result"></span>
 </p>
 
 <p id="p_save_line">
@@ -585,7 +665,6 @@
         <td><input type="number" value="1" min="1" max="9" id="num_weight_10" onchange="inputOnChange_Settings();" /></td>
     </tr>
 </table>
-
 
 </body>
 </html>
