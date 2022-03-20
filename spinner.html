@@ -501,10 +501,27 @@
         }
     }
 
+    function loadLine_do_on_hidden() {
+        // clear user edit box
+        const elem_loadTxtbx = document.getElementById('txtbx_load');
+        if (elem_loadTxtbx) {
+            elem_loadTxtbx.value = '';
+        }
+
+        // clear success/error result
+        const elem_loadKey_result = document.getElementById('text_loadKey_result');
+        if (elem_loadKey_result) {
+            elem_loadKey_result.innerHTML = '';
+        }
+    }
+
     function loadLine_set_hidden(bIsHidden) {
         const elem = document.getElementById('p_load_line');
         if (elem) {
             elem.hidden = bIsHidden;
+            if (elem.hidden) {
+                loadLine_do_on_hidden();
+            }
         }
     }
 
@@ -512,6 +529,9 @@
         const elem = document.getElementById('p_load_line');
         if (elem) {
             elem.hidden = !elem.hidden;
+            if (elem.hidden) {
+                loadLine_do_on_hidden();
+            }
         }
     }
 
