@@ -12,6 +12,9 @@
     .align_center {
         text-align: center;
     }
+    .text_dark_grey {
+        color: #404040;
+    }
 </style>
 <script type="text/javascript">
   // SIZE CONSTANTS
@@ -369,17 +372,21 @@
     return out_settings;
   }
 
+  function save_txtbx_update(str) {
+    const elem = document.getElementById('txtbx_save');
+    if (elem) {
+      elem.value = str;
+    }
+  }
+
   function inputOnChange_Settings() {
     read_settings();
     compute_wedge_angles();
     console.log('settings: {}', g_wedge_settings);
 
-    // -- TESTING --
     const encode_str = encode_settings(g_wedge_settings);
-    console.log('encode_str:', encode_str);
-    const decode_set = decode_settings(encode_str);
-    console.log('decode_settings:', decode_set);
-    // -- TESTING --
+    // console.log('encode_str:', encode_str);
+    save_txtbx_update(encode_str);
 
     draw();
   }
@@ -417,10 +424,10 @@
   }
 
   function btnOnClick_Reset() {
+    loadLine_set_hidden(true);
+    saveLine_set_hidden(true);
     settings_reset();
-    read_settings();
-    compute_wedge_angles();
-    draw();  // call once to update wheel
+    inputOnChange_Settings();
   }
 
   function set_wedge_num_cell_bg() {
@@ -436,15 +443,56 @@
     }
   }
 
+  function loadLine_set_hidden(bIsHidden) {
+    const elem = document.getElementById('p_load_line');
+    if (elem) {
+      elem.hidden = bIsHidden;
+    }
+  }
+
+  function loadLine_invert_hidden() {
+    const elem = document.getElementById('p_load_line');
+    if (elem) {
+      elem.hidden = !elem.hidden;
+    }
+  }
+
+  function saveLine_set_hidden(bIsHidden) {
+    const elem = document.getElementById('p_save_line');
+    if (elem) {
+      elem.hidden = bIsHidden;
+    }
+  }
+
+  function saveLine_invert_hidden() {
+    const elem = document.getElementById('p_save_line');
+    if (elem) {
+      elem.hidden = !elem.hidden;
+    }
+  }
+
+  function btnOnClick_Load() {
+    saveLine_set_hidden(true);
+    loadLine_invert_hidden();
+  }
+
+  function btnOnClick_Save() {
+    loadLine_set_hidden(true);
+    saveLine_invert_hidden();
+  }
+
+  function btnOnClick_LoadKey() {
+    // const decode_set = decode_settings(encode_str);
+    // console.log('decode_settings:', decode_set);
+  }
+
   function init() {
     gb_wheel_spinning = false;
     g_rot_offset = ROTATION_INIT_OFFSET;
 
     set_wedge_num_cell_bg();
-    settings_reset();
-    read_settings();
-    compute_wedge_angles();
-    draw();  // call once to show wheel
+
+    btnOnClick_Reset();
   }
 </script>
 </head>
@@ -465,6 +513,19 @@
 
 </p>
 <button type="button" id="btn_reset" onclick="btnOnClick_Reset();">Reset</button>
+<button type="button" id="btn_load" onclick="btnOnClick_Load();">Load...</button>
+<button type="button" id="btn_save" onclick="btnOnClick_Save();">Save...</button>
+</p>
+
+<p id="p_load_line">
+<span class="text_dark_grey">Enter saved key:</span>
+<input type="text" id="txtbx_load" />
+<button type="button" id="btn_loadKey" onclick="btnOnClick_LoadKey();">Load Key</button>
+</p>
+
+<p id="p_save_line">
+<span class="text_dark_grey">Copy and save this key:</span>
+<input type="text" class="text_dark_grey" id="txtbx_save" readonly=true />
 </p>
 
 <table id="tbl_wedge_settings">
