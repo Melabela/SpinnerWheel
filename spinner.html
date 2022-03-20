@@ -17,562 +17,562 @@
     }
 </style>
 <script type="text/javascript">
-  // SIZE CONSTANTS
-  const CANVAS_WIDTH = 220;  // height same; assume using square box
-  const WHEEL_RADIUS = 100;  // diameter = 200
+    // SIZE CONSTANTS
+    const CANVAS_WIDTH = 220;  // height same; assume using square box
+    const WHEEL_RADIUS = 100;  // diameter = 200
 
-  // assuming 60 FPS - one full rotation every 2 seconds
-  //  Note:  seems like +'ve radians are clockwise, prob. b/c +y is Down
-  const ROTATION_PER_FRAME = -(Math.PI / 60);
+    // assuming 60 FPS - one full rotation every 2 seconds
+    //  Note:  seems like +'ve radians are clockwise, prob. b/c +y is Down
+    const ROTATION_PER_FRAME = -(Math.PI / 60);
 
-  // start w/ -90 deg, make '1' at top
-  const ROTATION_INIT_OFFSET = -(Math.PI / 2);
+    // start w/ -90 deg, make '1' at top
+    const ROTATION_INIT_OFFSET = -(Math.PI / 2);
 
-  // max number of wedges
-  const MAX_WEDGES = 10;
+    // max number of wedges
+    const MAX_WEDGES = 10;
 
-  // COLOR PALETTES
-  // Wedge BG, lighter colors
-  // https://coolors.co/palette/fbf8cc-fde4cf-ffcfd2-f1c0e8-cfbaf0-a3c4f3-90dbf4-8eecf5-98f5e1-b9fbc0
-  const WEDGE_BG_COLORS = [
-    '#000000',  // [ 0] placeholder, NOT USED
-    '#F1C0E8',  // [ 1] pink-red
-    '#FFCFD2',  // [ 2] red
-    '#FDE4CF',  // [ 3] orange
-    '#FBF8CC',  // [ 4] yellow
-    '#B9FBC0',  // [ 5] light-green
-    '#98F5E1',  // [ 6] pink-red
-    '#8EECF5',  // [ 7] light-blue (cyan)
-    '#90DBF4',  // [ 8] med-blue
-    '#A3C4F3',  // [ 9] dark-blue
-    '#CFBAF0'   // [10] purple
-  ];
+    // COLOR PALETTES
+    // Wedge BG, lighter colors
+    // https://coolors.co/palette/fbf8cc-fde4cf-ffcfd2-f1c0e8-cfbaf0-a3c4f3-90dbf4-8eecf5-98f5e1-b9fbc0
+    const WEDGE_BG_COLORS = [
+        '#000000',  // [ 0] placeholder, NOT USED
+        '#F1C0E8',  // [ 1] pink-red
+        '#FFCFD2',  // [ 2] red
+        '#FDE4CF',  // [ 3] orange
+        '#FBF8CC',  // [ 4] yellow
+        '#B9FBC0',  // [ 5] light-green
+        '#98F5E1',  // [ 6] pink-red
+        '#8EECF5',  // [ 7] light-blue (cyan)
+        '#90DBF4',  // [ 8] med-blue
+        '#A3C4F3',  // [ 9] dark-blue
+        '#CFBAF0'   // [10] purple
+    ];
 
-  const WEDGE_NUM_TEXT_COLOR = '#707070';
-  const WEDGE_NUM_TEXT_FONT = '16px serif';
+    const WEDGE_NUM_TEXT_COLOR = '#707070';
+    const WEDGE_NUM_TEXT_FONT = '16px serif';
 
-  const POINTER_COLOR = 'red';
+    const POINTER_COLOR = 'red';
 
-  // globals
-  let gb_wheel_spinning;
-  let g_rot_offset;  // angle offset for wheel spin
-  let g_wedge_settings;
+    // globals
+    let gb_wheel_spinning;
+    let g_rot_offset;  // angle offset for wheel spin
+    let g_wedge_settings;
 
-  // utility fns
-  function areFloatsApproxEqual(a, b, maxOffset) {
-    const delta = Math.abs(a - b);
-    return delta <= Math.abs(maxOffset);
-  }
-
-  function normalizeAngle(angleRad) {
-    let outAngleRad = angleRad;
-
-    while (outAngleRad >= (Math.PI * 2)) {
-      outAngleRad -= (Math.PI * 2);
-    }
-    while (outAngleRad < 0.0) {
-      outAngleRad += (Math.PI * 2);
+    // utility fns
+    function areFloatsApproxEqual(a, b, maxOffset) {
+        const delta = Math.abs(a - b);
+        return delta <= Math.abs(maxOffset);
     }
 
-    return outAngleRad;
-  }
+    function normalizeAngle(angleRad) {
+        let outAngleRad = angleRad;
 
-  // FYI - instead of manually calculating rotations,
-  //  use Canvas Transformations as shown in MDN 'Clock' example:
-  //
-  //  https://developer.mozilla.org/en-US/docs/Web/API/Canvas_API/Tutorial/Basic_animations#an_animated_clock
-  //
-  // Idea - leverage Canvas Transforms to do "harder" angle manipulations:
-  //  1. draw horiz line (rad=0) and arc portion
-  //  2. **rotate canvas by angle**
-  //  3. repeat 1. & 2., for next wedge
-
-  function calcPointOnCircle(radius, angleRad) {
-    // Note: increasing y is DOWN, in 2D UI co-ordinate system
-    //
-    // (0,0)  x
-    //     .---.
-    //      \  |
-    //     r \ | y
-    //        \|
-    //         . (x, y)
-
-    const x = Math.cos(angleRad) * radius;
-    const y = Math.sin(angleRad) * radius;
-    return [x, y];
-  }
-
-  function drawWheelWedge(ctx, idx, radius, rdWedgeAngle) {
-    ctx.save();
-
-    // Repeat:
-    // - Draw wedge, w/ one edge on horizontal y=0
-    // - Rotate entire context, setup for next wedge
-    //
-    // (0,0)   r
-    //  .----------. (x1,y1) = (r,0)
-    //    \       /
-    //      \    /
-    //        \ /
-    //         . (x2,y2)
-
-    const [x1, y1] = [radius, 0];
-    const [x2, y2] = calcPointOnCircle(radius, rdWedgeAngle);
-    // console.log("pt1=(%f, %f)", x1, y1);
-    // console.log("pt2=(%f, %f)", x2, y2);
-
-    ctx.beginPath();
-    ctx.lineTo(0, 0, x1, y1);
-    ctx.arc(0, 0, radius, 0, rdWedgeAngle);
-    ctx.lineTo(x2, y2, 0, 0);
-
-    const fillColorIdx = (idx % WEDGE_BG_COLORS.length);
-    ctx.fillStyle = WEDGE_BG_COLORS[fillColorIdx];
-    // console.log("fillColorIdx=%d, fillColor=%s", fillColorIdx, ctx.fillStyle);
-    ctx.fill();
-
-    // if not spinning, also print wedge number
-    if (!gb_wheel_spinning) {
-      const segNum = idx;
-      const xText = (segNum >= 10) ? x1 * 0.6 : x1 * 0.7;
-      const yText = y2 / 2;
-
-      ctx.font = WEDGE_NUM_TEXT_FONT;
-      ctx.fillStyle = WEDGE_NUM_TEXT_COLOR;
-      ctx.fillText(segNum, xText, yText);
-    }
-
-    ctx.restore();
-  }
-
-  // compare 'g_rot_offset' to angles of segment boundaries
-  function isPointerNearSegBoundary() {
-    // pointer is at top-middle (12-o'clock)
-    // but rotation system starts at 3-o'clock
-    const adjRotationOffset = normalizeAngle(g_rot_offset - ROTATION_INIT_OFFSET);
-
-    const radMaxNearOffset = (Math.PI / 45);  // +/- 4 degrees
-    let bIsNearBoundary = false;
-
-    for (let idx=1; idx<=MAX_WEDGES; idx++) {
-      const wedgeSettings = g_wedge_settings[idx];
-      if (wedgeSettings.isOn) {
-        const areAnglesClose = areFloatsApproxEqual(
-          adjRotationOffset,
-          wedgeSettings.culumEndAngleInRads,
-          radMaxNearOffset);
-
-        if (areAnglesClose) {
-          // console.log(`anglesClose: idx=${idx}, adjRotOffset=${adjRotationOffset}, cumulEndAngle=${wedgeSettings.culumEndAngleInRads}`);
-          bIsNearBoundary = true;
-          break;
+        while (outAngleRad >= (Math.PI * 2)) {
+            outAngleRad -= (Math.PI * 2);
         }
-      }
+        while (outAngleRad < 0.0) {
+            outAngleRad += (Math.PI * 2);
+        }
+
+        return outAngleRad;
     }
 
-    return bIsNearBoundary;
-  }
+    // FYI - instead of manually calculating rotations,
+    //  use Canvas Transformations as shown in MDN 'Clock' example:
+    //
+    //  https://developer.mozilla.org/en-US/docs/Web/API/Canvas_API/Tutorial/Basic_animations#an_animated_clock
+    //
+    // Idea - leverage Canvas Transforms to do "harder" angle manipulations:
+    //  1. draw horiz line (rad=0) and arc portion
+    //  2. **rotate canvas by angle**
+    //  3. repeat 1. & 2., for next wedge
 
-  function drawWheelPointer(ctx, canv_width, radius) {
-    ctx.save();
+    function calcPointOnCircle(radius, angleRad) {
+        // Note: increasing y is DOWN, in 2D UI co-ordinate system
+        //
+        // (0,0)  x
+        //     .---.
+        //      \  |
+        //     r \ | y
+        //        \|
+        //         . (x, y)
 
-    const xWheelTop = canv_width / 2;
-    const yWheelTop = (canv_width / 2) - radius;
-
-    // move origin to top of wheel, at "12-oClock" position
-    ctx.translate(xWheelTop, yWheelTop);
-
-    const yTriglTop = -15;  // most of it sits above wheel
-    const xTriglHalfWidth = 8;
-
-    // simulate effect when "flapper hits peg" in real wheel
-    // do this by angle-ing bottom of pointer triangle
-    const bIsPointerFlap = isPointerNearSegBoundary();
-    const xTriglBtm = bIsPointerFlap ? -15 : 0;
-    const yTriglBtm = bIsPointerFlap ? 10 : 15;
-
-    // draw 'pointer' = down-pointing triangle
-    ctx.beginPath();
-    ctx.lineTo(xTriglBtm, yTriglBtm, xTriglHalfWidth, yTriglTop);
-    ctx.lineTo(xTriglHalfWidth, yTriglTop, -xTriglHalfWidth, yTriglTop);
-    ctx.lineTo(-xTriglHalfWidth, yTriglTop, xTriglBtm, yTriglBtm);
-
-    ctx.fillStyle = POINTER_COLOR;
-    ctx.fill();
-
-    ctx.restore();
-  }
-
-  function drawWheel(ctx, canv_width, radius, rot_offset=0.0) {
-    ctx.save();
-    ctx.clearRect(0, 0, canv_width, canv_width);
-
-    // move origin to middle of canvas & center of circle,
-    //  makes circular operations easier
-    ctx.save();
-
-    const midPt = canv_width / 2;
-    ctx.translate(midPt, midPt);
-
-    // apply spin offset before we start drawing this frame
-    ctx.rotate(rot_offset);
-
-    // console.log("rot_offset=%f", rot_offset);
-
-    for (let idx=1; idx<=MAX_WEDGES; idx++) {
-      const wedgeSettings = g_wedge_settings[idx];
-      // console.log(`idx=${idx}, wedgeSettings=${JSON.stringify(wedgeSettings)}`);
-
-      if (wedgeSettings.isOn) {
-        const rdWedgeAngle = wedgeSettings.angleInRads;
-        drawWheelWedge(ctx, idx, radius, rdWedgeAngle);
-
-        // rotate canvas to do next wedge!
-        ctx.rotate(rdWedgeAngle);
-      }
+        const x = Math.cos(angleRad) * radius;
+        const y = Math.sin(angleRad) * radius;
+        return [x, y];
     }
 
-    // return to normal canvas; origin = top-left corner, etc.
-    ctx.restore();
+    function drawWheelWedge(ctx, idx, radius, rdWedgeAngle) {
+        ctx.save();
 
-    drawWheelPointer(ctx, canv_width, radius);
+        // Repeat:
+        // - Draw wedge, w/ one edge on horizontal y=0
+        // - Rotate entire context, setup for next wedge
+        //
+        // (0,0)   r
+        //  .----------. (x1,y1) = (r,0)
+        //    \       /
+        //      \    /
+        //        \ /
+        //         . (x2,y2)
 
-    ctx.restore();
-  }
+        const [x1, y1] = [radius, 0];
+        const [x2, y2] = calcPointOnCircle(radius, rdWedgeAngle);
+        // console.log("pt1=(%f, %f)", x1, y1);
+        // console.log("pt2=(%f, %f)", x2, y2);
 
-  function draw() {
-    const canvas = document.getElementById('spinner');
-    if (canvas.getContext) {
-      const ctx = canvas.getContext('2d');
+        ctx.beginPath();
+        ctx.lineTo(0, 0, x1, y1);
+        ctx.arc(0, 0, radius, 0, rdWedgeAngle);
+        ctx.lineTo(x2, y2, 0, 0);
 
-      drawWheel(ctx, CANVAS_WIDTH, WHEEL_RADIUS, g_rot_offset);
+        const fillColorIdx = (idx % WEDGE_BG_COLORS.length);
+        ctx.fillStyle = WEDGE_BG_COLORS[fillColorIdx];
+        // console.log("fillColorIdx=%d, fillColor=%s", fillColorIdx, ctx.fillStyle);
+        ctx.fill();
 
-      if (gb_wheel_spinning) {
-        // update rotation offset, to make spin
-        g_rot_offset += ROTATION_PER_FRAME;
-        // normalize rotation offset into std radian range [0, 2*PI]
-        g_rot_offset = normalizeAngle(g_rot_offset);
+        // if not spinning, also print wedge number
+        if (!gb_wheel_spinning) {
+            const segNum = idx;
+            const xText = (segNum >= 10) ? x1 * 0.6 : x1 * 0.7;
+            const yText = y2 / 2;
 
-        window.requestAnimationFrame(draw);
-      }
+            ctx.font = WEDGE_NUM_TEXT_FONT;
+            ctx.fillStyle = WEDGE_NUM_TEXT_COLOR;
+            ctx.fillText(segNum, xText, yText);
+        }
+
+        ctx.restore();
     }
-  }
 
-  const SETTINGS_ELEM_ID_PREFIXES = [
-    'cb_isOn_',
-    'num_weight_'
-  ];
+    // compare 'g_rot_offset' to angles of segment boundaries
+    function isPointerNearSegBoundary() {
+        // pointer is at top-middle (12-o'clock)
+        // but rotation system starts at 3-o'clock
+        const adjRotationOffset = normalizeAngle(g_rot_offset - ROTATION_INIT_OFFSET);
 
-  function settings_elems_enable(set_on) {
-    const elem_reset = document.getElementById('btn_reset');
-    if (elem_reset) {
-      elem_reset.disabled = !set_on;
+        const radMaxNearOffset = (Math.PI / 45);  // +/- 4 degrees
+        let bIsNearBoundary = false;
+
+        for (let idx=1; idx<=MAX_WEDGES; idx++) {
+            const wedgeSettings = g_wedge_settings[idx];
+            if (wedgeSettings.isOn) {
+                const areAnglesClose = areFloatsApproxEqual(
+                    adjRotationOffset,
+                    wedgeSettings.culumEndAngleInRads,
+                    radMaxNearOffset);
+
+                if (areAnglesClose) {
+                    // console.log(`anglesClose: idx=${idx}, adjRotOffset=${adjRotationOffset}, cumulEndAngle=${wedgeSettings.culumEndAngleInRads}`);
+                    bIsNearBoundary = true;
+                    break;
+                }
+            }
+        }
+
+        return bIsNearBoundary;
     }
 
-    for (let i=1; i<=MAX_WEDGES; i++) {
-      for (const prefix of SETTINGS_ELEM_ID_PREFIXES) {
-        const elem_id = prefix + i;
-        const elem = document.getElementById(elem_id);
+    function drawWheelPointer(ctx, canv_width, radius) {
+        ctx.save();
+
+        const xWheelTop = canv_width / 2;
+        const yWheelTop = (canv_width / 2) - radius;
+
+        // move origin to top of wheel, at "12-oClock" position
+        ctx.translate(xWheelTop, yWheelTop);
+
+        const yTriglTop = -15;  // most of it sits above wheel
+        const xTriglHalfWidth = 8;
+
+        // simulate effect when "flapper hits peg" in real wheel
+        // do this by angle-ing bottom of pointer triangle
+        const bIsPointerFlap = isPointerNearSegBoundary();
+        const xTriglBtm = bIsPointerFlap ? -15 : 0;
+        const yTriglBtm = bIsPointerFlap ? 10 : 15;
+
+        // draw 'pointer' = down-pointing triangle
+        ctx.beginPath();
+        ctx.lineTo(xTriglBtm, yTriglBtm, xTriglHalfWidth, yTriglTop);
+        ctx.lineTo(xTriglHalfWidth, yTriglTop, -xTriglHalfWidth, yTriglTop);
+        ctx.lineTo(-xTriglHalfWidth, yTriglTop, xTriglBtm, yTriglBtm);
+
+        ctx.fillStyle = POINTER_COLOR;
+        ctx.fill();
+
+        ctx.restore();
+    }
+
+    function drawWheel(ctx, canv_width, radius, rot_offset=0.0) {
+        ctx.save();
+        ctx.clearRect(0, 0, canv_width, canv_width);
+
+        // move origin to middle of canvas & center of circle,
+        //  makes circular operations easier
+        ctx.save();
+
+        const midPt = canv_width / 2;
+        ctx.translate(midPt, midPt);
+
+        // apply spin offset before we start drawing this frame
+        ctx.rotate(rot_offset);
+
+        // console.log("rot_offset=%f", rot_offset);
+
+        for (let idx=1; idx<=MAX_WEDGES; idx++) {
+            const wedgeSettings = g_wedge_settings[idx];
+            // console.log(`idx=${idx}, wedgeSettings=${JSON.stringify(wedgeSettings)}`);
+
+            if (wedgeSettings.isOn) {
+                const rdWedgeAngle = wedgeSettings.angleInRads;
+                drawWheelWedge(ctx, idx, radius, rdWedgeAngle);
+
+                // rotate canvas to do next wedge!
+                ctx.rotate(rdWedgeAngle);
+            }
+        }
+
+        // return to normal canvas; origin = top-left corner, etc.
+        ctx.restore();
+
+        drawWheelPointer(ctx, canv_width, radius);
+        ctx.restore();
+    }
+
+    function draw() {
+        const canvas = document.getElementById('spinner');
+        if (canvas.getContext) {
+            const ctx = canvas.getContext('2d');
+
+            drawWheel(ctx, CANVAS_WIDTH, WHEEL_RADIUS, g_rot_offset);
+
+            if (gb_wheel_spinning) {
+                // update rotation offset, to make spin
+                g_rot_offset += ROTATION_PER_FRAME;
+                // normalize rotation offset into std radian range [0, 2*PI]
+                g_rot_offset = normalizeAngle(g_rot_offset);
+
+                window.requestAnimationFrame(draw);
+            }
+        }
+    }
+
+    const SETTINGS_ELEM_ID_PREFIXES = [
+        'cb_isOn_',
+        'num_weight_'
+    ];
+
+    function settings_elems_enable(set_on) {
+        const elem_reset = document.getElementById('btn_reset');
+        if (elem_reset) {
+            elem_reset.disabled = !set_on;
+        }
+
+        for (let i=1; i<=MAX_WEDGES; i++) {
+            for (const prefix of SETTINGS_ELEM_ID_PREFIXES) {
+                const elem_id = prefix + i;
+                const elem = document.getElementById(elem_id);
+                if (elem) {
+                    elem.disabled = !set_on;
+                }
+            }
+        }
+    }
+
+    function read_settings() {
+        const settings = {};
+
+        // 1st loop, read values from elements
+        for (let i=1; i<=MAX_WEDGES; i++) {
+            const id_elem_isOn = SETTINGS_ELEM_ID_PREFIXES[0] + i;
+            const id_elem_weight = SETTINGS_ELEM_ID_PREFIXES[1] + i;
+
+            let isOn = true;
+            const elem_isOn = document.getElementById(id_elem_isOn);
+            if (elem_isOn) {
+                isOn = elem_isOn.checked;
+            }
+
+            let weight = 1;
+            const elem_weight = document.getElementById(id_elem_weight);
+            if (elem_weight) {
+                weight = +elem_weight.value;
+            }
+
+            const wedge_params = {
+                isOn,
+                weight,
+            };
+            settings[i] = wedge_params;
+        }
+
+        g_wedge_settings = settings;
+    }
+
+    function apply_settings(settings) {
+        // update elements based on global_settings
+        for (let i=1; i<=MAX_WEDGES; i++) {
+            const id_elem_isOn = SETTINGS_ELEM_ID_PREFIXES[0] + i;
+            const id_elem_weight = SETTINGS_ELEM_ID_PREFIXES[1] + i;
+
+            const elem_isOn = document.getElementById(id_elem_isOn);
+            if (elem_isOn) {
+                elem_isOn.checked = settings[i].isOn;
+            }
+
+            const elem_weight = document.getElementById(id_elem_weight);
+            if (elem_weight) {
+                elem_weight.value = settings[i].weight;
+            }
+        }
+    }
+
+    function compute_wedge_angles() {
+        // 1st loop, get sum of (active) weights
+        let total_weight = 0;
+        for (let i=1; i<=MAX_WEDGES; i++) {
+            if (g_wedge_settings[i].isOn) {
+                total_weight += g_wedge_settings[i].weight;
+            }
+        }
+
+        // 2nd loop, compute angles based on relative weights
+        let cumulAngleInRads = 0;
+        for (let i=1; i<=MAX_WEDGES; i++) {
+            const settings = g_wedge_settings[i];
+            if (settings.isOn) {
+                const ratio = (settings.weight / total_weight);
+                const angleInRads = ratio * (Math.PI * 2);
+                cumulAngleInRads -= angleInRads;  // negative, b/c rotation counter-clockwise
+
+                settings.ratio = ratio;
+                settings.angleInRads = angleInRads;
+                settings.culumEndAngleInRads = normalizeAngle(cumulAngleInRads);
+            }
+            else {
+                settings.ratio = 0.0;
+                settings.angleInRads = 0.0;
+            }
+        }
+    }
+
+    // encode 'isOn' and 'weight' per wedge into ascii-char
+    //  e.g. (1, 3) -> binary(011_<1-bit: isOn>_<4-bit: weight>)
+    //        = 011_1_0011 = hex(0x73) = ascii('s')
+    function encode_settings(settings) {
+        const out_chars = [];
+        for (let i=1; i<=MAX_WEDGES; i++) {
+            const isOn = settings[i].isOn;
+            const weight = settings[i].weight;
+            const ascii_val = 0x60 + (isOn ? 0x10 : 0) + (weight & 0xf);
+            out_chars.push(String.fromCharCode(ascii_val));
+        }
+        const out_str = out_chars.join('');
+        return out_str;
+    }
+
+    function validate_encoded_settings(str) {
+        // validate expectations for encoded string
+
+        // 1. is 10 characters exactly:
+        if (str.length != 10) {
+            return false;
+        }
+
+        // 2. contains only certain lowercase letters:
+        // (wedge disabled)
+        const charCode_a = 'a'.charCodeAt(0);
+        const charCode_i = 'i'.charCodeAt(0);
+        // (wedge enabled)
+        const charCode_q = 'q'.charCodeAt(0);
+        const charCode_y = 'y'.charCodeAt(0);
+
+        for (let i=0; i<str.length; i++) {
+            const charCodeAtIdx = str.charCodeAt(i);
+            if (charCodeAtIdx < charCode_a) {
+                return false;
+            }
+            if (charCodeAtIdx > charCode_y) {
+                return false;
+            }
+            if ((charCodeAtIdx > charCode_i) && (charCodeAtIdx < charCode_q)) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    // reverse of encode_settings()
+    //  e.g. input = "aqqqqavqcq"
+    // disassemble as [1] = 'isOn'.'weight' / [2] / [3] / ...
+    function decode_settings(str) {
+        const out_settings = {};
+
+        for (let i=0; i<MAX_WEDGES; i++) {
+            const ascii_val = str.charCodeAt(i);
+            const isOn = ((ascii_val & 0x10) != 0);
+            const weight = (ascii_val & 0xf);
+            out_settings[i+1] = {
+                isOn,
+                weight
+            };
+        }
+
+        return out_settings;
+    }
+
+    function load_txtbx_value() {
+        const elem = document.getElementById('txtbx_load');
         if (elem) {
-          elem.disabled = !set_on;
+            return elem.value;
         }
-      }
-    }
-  }
-
-  function read_settings() {
-    const settings = {};
-
-    // 1st loop, read values from elements
-    for (let i=1; i<=MAX_WEDGES; i++) {
-      const id_elem_isOn = SETTINGS_ELEM_ID_PREFIXES[0] + i;
-      const id_elem_weight = SETTINGS_ELEM_ID_PREFIXES[1] + i;
-
-      let isOn = true;
-      const elem_isOn = document.getElementById(id_elem_isOn);
-      if (elem_isOn) {
-        isOn = elem_isOn.checked;
-      }
-
-      let weight = 1;
-      const elem_weight = document.getElementById(id_elem_weight);
-      if (elem_weight) {
-        weight = +elem_weight.value;
-      }
-
-      const wedge_params = {
-        isOn,
-        weight,
-      };
-      settings[i] = wedge_params;
-    }
-    g_wedge_settings = settings;
-  }
-
-  function apply_settings(settings) {
-    // update elements based on global_settings
-    for (let i=1; i<=MAX_WEDGES; i++) {
-      const id_elem_isOn = SETTINGS_ELEM_ID_PREFIXES[0] + i;
-      const id_elem_weight = SETTINGS_ELEM_ID_PREFIXES[1] + i;
-
-      const elem_isOn = document.getElementById(id_elem_isOn);
-      if (elem_isOn) {
-        elem_isOn.checked = settings[i].isOn;
-      }
-
-      const elem_weight = document.getElementById(id_elem_weight);
-      if (elem_weight) {
-        elem_weight.value = settings[i].weight;
-      }
-    }
-  }
-
-  function compute_wedge_angles() {
-    // 1st loop, get sum of (active) weights
-    let total_weight = 0;
-    for (let i=1; i<=MAX_WEDGES; i++) {
-      if (g_wedge_settings[i].isOn) {
-        total_weight += g_wedge_settings[i].weight;
-      }
+        return '';
     }
 
-    // 2nd loop, compute angles based on relative weights
-    let cumulAngleInRads = 0;
-    for (let i=1; i<=MAX_WEDGES; i++) {
-      const settings = g_wedge_settings[i];
-      if (settings.isOn) {
-        const ratio = (settings.weight / total_weight);
-        const angleInRads = ratio * (Math.PI * 2);
-        cumulAngleInRads -= angleInRads;  // negative, b/c rotation counter-clockwise
-
-        settings.ratio = ratio;
-        settings.angleInRads = angleInRads;
-        settings.culumEndAngleInRads = normalizeAngle(cumulAngleInRads);
-      }
-      else {
-        settings.ratio = 0.0;
-        settings.angleInRads = 0.0;
-      }
-    }
-  }
-
-  // encode 'isOn' and 'weight' per wedge into ascii-char
-  //  e.g. (1, 3) -> binary(011_<1-bit: isOn>_<4-bit: weight>)
-  //        = 011_1_0011 = hex(0x73) = ascii('s')
-  function encode_settings(settings) {
-    const out_chars = [];
-    for (let i=1; i<=MAX_WEDGES; i++) {
-      const isOn = settings[i].isOn;
-      const weight = settings[i].weight;
-      const ascii_val = 0x60 + (isOn ? 0x10 : 0) + (weight & 0xf);
-      out_chars.push(String.fromCharCode(ascii_val));
-    }
-    const out_str = out_chars.join('');
-    return out_str;
-  }
-
-  function validate_encoded_settings(str) {
-    // validate expectations for encoded string
-
-    // 1. is 10 characters exactly:
-    if (str.length != 10) {
-      return false;
+    function save_txtbx_update(str) {
+        const elem = document.getElementById('txtbx_save');
+        if (elem) {
+            elem.value = str;
+        }
     }
 
-    // 2. contains only certain lowercase letters:
-    // (wedge disabled)
-    const charCode_a = 'a'.charCodeAt(0);
-    const charCode_i = 'i'.charCodeAt(0);
-    // (wedge enabled)
-    const charCode_q = 'q'.charCodeAt(0);
-    const charCode_y = 'y'.charCodeAt(0);
+    function inputOnChange_Settings() {
+        read_settings();
+        compute_wedge_angles();
+        console.log('settings: {}', g_wedge_settings);
 
-    for (let i=0; i<str.length; i++) {
-      const charCodeAtIdx = str.charCodeAt(i);
-      if (charCodeAtIdx < charCode_a) {
-        return false;
-      }
-      if (charCodeAtIdx > charCode_y) {
-        return false;
-      }
-      if ((charCodeAtIdx > charCode_i) && (charCodeAtIdx < charCode_q)) {
-        return false;
-      }
+        const encode_str = encode_settings(g_wedge_settings);
+        // console.log('encode_str:', encode_str);
+        save_txtbx_update(encode_str);
+
+        draw();
     }
 
-    return true;
-  }
+    // invert flag, and update button text
+    function btnOnClick_Spin() {
+        gb_wheel_spinning = !gb_wheel_spinning;
 
-  // reverse of encode_settings()
-  //  e.g. input = "aqqqqavqcq"
-  // disassemble as [1] = 'isOn'.'weight' / [2] / [3] / ...
-  function decode_settings(str) {
-    const out_settings = {};
+        const btn_spin = document.getElementById('btn_spin');
+        btn_spin.innerHTML = (gb_wheel_spinning) ? 'Stop...' : 'Spin!';
 
-    for (let i=0; i<MAX_WEDGES; i++) {
-      const ascii_val = str.charCodeAt(i);
-      const isOn = ((ascii_val & 0x10) != 0);
-      const weight = (ascii_val & 0xf);
-      out_settings[i+1] = {
-        isOn,
-        weight
-      };
+        settings_elems_enable(!gb_wheel_spinning);
+
+        if (gb_wheel_spinning) {
+            window.requestAnimationFrame(draw);
+        }
     }
 
-    return out_settings;
-  }
+    // reset all wedge settings to: (on, weight=1)
+    function settings_reset() {
+        for (let i=1; i<=MAX_WEDGES; i++) {
+            const id_elem_isOn = SETTINGS_ELEM_ID_PREFIXES[0] + i;
+            const id_elem_weight = SETTINGS_ELEM_ID_PREFIXES[1] + i;
 
-  function load_txtbx_value() {
-    const elem = document.getElementById('txtbx_load');
-    if (elem) {
-      return elem.value;
+            const elem_isOn = document.getElementById(id_elem_isOn);
+            if (elem_isOn) {
+                elem_isOn.checked = true;
+            }
+
+            const elem_weight = document.getElementById(id_elem_weight);
+            if (elem_weight) {
+                elem_weight.value = 1;
+            }
+        }
     }
-    return '';
-  }
 
-  function save_txtbx_update(str) {
-    const elem = document.getElementById('txtbx_save');
-    if (elem) {
-      elem.value = str;
+    function btnOnClick_Reset() {
+        loadLine_set_hidden(true);
+        saveLine_set_hidden(true);
+        settings_reset();
+        inputOnChange_Settings();
     }
-  }
 
-  function inputOnChange_Settings() {
-    read_settings();
-    compute_wedge_angles();
-    console.log('settings: {}', g_wedge_settings);
+    function set_wedge_num_cell_bg() {
+        const ELEM_PREFIX = 'wedge_num_';
+        for (let i=1; i<=MAX_WEDGES; i++) {
+            const id_elem = ELEM_PREFIX + i;
+            const bg_color = WEDGE_BG_COLORS[i];
 
-    const encode_str = encode_settings(g_wedge_settings);
-    // console.log('encode_str:', encode_str);
-    save_txtbx_update(encode_str);
-
-    draw();
-  }
-
-  // invert flag, and update button text
-  function btnOnClick_Spin() {
-    gb_wheel_spinning = !gb_wheel_spinning;
-
-    const btn_spin = document.getElementById('btn_spin');
-    btn_spin.innerHTML = (gb_wheel_spinning) ? 'Stop...' : 'Spin!';
-
-    settings_elems_enable(!gb_wheel_spinning);
-
-    if (gb_wheel_spinning) {
-      window.requestAnimationFrame(draw);
+            const elem = document.getElementById(id_elem);
+            if (elem) {
+                elem.style.backgroundColor = bg_color;
+            }
+        }
     }
-  }
 
-  // reset all wedge settings to: (on, weight=1)
-  function settings_reset() {
-    for (let i=1; i<=MAX_WEDGES; i++) {
-      const id_elem_isOn = SETTINGS_ELEM_ID_PREFIXES[0] + i;
-      const id_elem_weight = SETTINGS_ELEM_ID_PREFIXES[1] + i;
-
-      const elem_isOn = document.getElementById(id_elem_isOn);
-      if (elem_isOn) {
-        elem_isOn.checked = true;
-      }
-
-      const elem_weight = document.getElementById(id_elem_weight);
-      if (elem_weight) {
-        elem_weight.value = 1;
-      }
+    function loadLine_set_hidden(bIsHidden) {
+        const elem = document.getElementById('p_load_line');
+        if (elem) {
+            elem.hidden = bIsHidden;
+        }
     }
-  }
 
-  function btnOnClick_Reset() {
-    loadLine_set_hidden(true);
-    saveLine_set_hidden(true);
-    settings_reset();
-    inputOnChange_Settings();
-  }
-
-  function set_wedge_num_cell_bg() {
-    const ELEM_PREFIX = 'wedge_num_';
-    for (let i=1; i<=MAX_WEDGES; i++) {
-      const id_elem = ELEM_PREFIX + i;
-      const bg_color = WEDGE_BG_COLORS[i];
-
-      const elem = document.getElementById(id_elem);
-      if (elem) {
-        elem.style.backgroundColor = bg_color;
-      }
+    function loadLine_invert_hidden() {
+        const elem = document.getElementById('p_load_line');
+        if (elem) {
+            elem.hidden = !elem.hidden;
+        }
     }
-  }
 
-  function loadLine_set_hidden(bIsHidden) {
-    const elem = document.getElementById('p_load_line');
-    if (elem) {
-      elem.hidden = bIsHidden;
+    function saveLine_set_hidden(bIsHidden) {
+        const elem = document.getElementById('p_save_line');
+        if (elem) {
+            elem.hidden = bIsHidden;
+        }
     }
-  }
 
-  function loadLine_invert_hidden() {
-    const elem = document.getElementById('p_load_line');
-    if (elem) {
-      elem.hidden = !elem.hidden;
+    function saveLine_invert_hidden() {
+        const elem = document.getElementById('p_save_line');
+        if (elem) {
+            elem.hidden = !elem.hidden;
+        }
     }
-  }
 
-  function saveLine_set_hidden(bIsHidden) {
-    const elem = document.getElementById('p_save_line');
-    if (elem) {
-      elem.hidden = bIsHidden;
+    function btnOnClick_Load() {
+        saveLine_set_hidden(true);
+        loadLine_invert_hidden();
     }
-  }
 
-  function saveLine_invert_hidden() {
-    const elem = document.getElementById('p_save_line');
-    if (elem) {
-      elem.hidden = !elem.hidden;
+    function btnOnClick_Save() {
+        loadLine_set_hidden(true);
+        saveLine_invert_hidden();
     }
-  }
 
-  function btnOnClick_Load() {
-    saveLine_set_hidden(true);
-    loadLine_invert_hidden();
-  }
+    function btnOnClick_LoadKey() {
+        const encode_str = load_txtbx_value();
+        const isEncodeStrValid = validate_encoded_settings(encode_str);
 
-  function btnOnClick_Save() {
-    loadLine_set_hidden(true);
-    saveLine_invert_hidden();
-  }
+        const elem_loadKey_result = document.getElementById('text_loadKey_result');
 
-  function btnOnClick_LoadKey() {
-    const encode_str = load_txtbx_value();
-    const isEncodeStrValid = validate_encoded_settings(encode_str);
+        if (isEncodeStrValid) {
+            const decode_set = decode_settings(encode_str);
+            console.log('decode_settings:', decode_set);
+            apply_settings(decode_set);
+            inputOnChange_Settings();
 
-    const elem_loadKey_result = document.getElementById('text_loadKey_result');
-
-    if (isEncodeStrValid) {
-      const decode_set = decode_settings(encode_str);
-      console.log('decode_settings:', decode_set);
-      apply_settings(decode_set);
-      inputOnChange_Settings();
-
-      // set load_msg to success
-      if (elem_loadKey_result) {
-        elem_loadKey_result.innerHTML = 'Success';
-        elem_loadKey_result.style.color = 'green';
-      }
-    } else {
-      // set load_msg to error
-      if (elem_loadKey_result) {
-        elem_loadKey_result.innerHTML = 'Error';
-        elem_loadKey_result.style.color = 'red';
-      }
+            // set load_msg to success
+            if (elem_loadKey_result) {
+                elem_loadKey_result.innerHTML = 'Success';
+                elem_loadKey_result.style.color = 'green';
+            }
+        } else {
+            // set load_msg to error
+            if (elem_loadKey_result) {
+                elem_loadKey_result.innerHTML = 'Error';
+                elem_loadKey_result.style.color = 'red';
+            }
+        }
     }
-  }
 
-  function init() {
-    gb_wheel_spinning = false;
-    g_rot_offset = ROTATION_INIT_OFFSET;
+    function init() {
+        gb_wheel_spinning = false;
+        g_rot_offset = ROTATION_INIT_OFFSET;
 
-    set_wedge_num_cell_bg();
+        set_wedge_num_cell_bg();
 
-    btnOnClick_Reset();
-  }
+        btnOnClick_Reset();
+    }
 </script>
 </head>
 
@@ -583,7 +583,7 @@
 <canvas id="spinner" width=220 height=220></canvas>
 
 <p>
-<button type="button" id="btn_spin" onclick="btnOnClick_Spin();">Spin!</button>
+    <button type="button" id="btn_spin" onclick="btnOnClick_Spin();">Spin!</button>
 </p>
 
 <hr />
@@ -591,21 +591,21 @@
 <h2>Settings</h2>
 
 <p>
-<button type="button" id="btn_reset" onclick="btnOnClick_Reset();">Reset</button>
-<button type="button" id="btn_load" onclick="btnOnClick_Load();">Load...</button>
-<button type="button" id="btn_save" onclick="btnOnClick_Save();">Save...</button>
+    <button type="button" id="btn_reset" onclick="btnOnClick_Reset();">Reset</button>
+    <button type="button" id="btn_load" onclick="btnOnClick_Load();">Load...</button>
+    <button type="button" id="btn_save" onclick="btnOnClick_Save();">Save...</button>
 </p>
 
 <p id="p_load_line">
-<span class="text_dark_grey">Enter saved key:</span>
-<input type="text" id="txtbx_load" />
-<button type="button" id="btn_loadKey" onclick="btnOnClick_LoadKey();">Load Key</button>
-<span id="text_loadKey_result"></span>
+    <span class="text_dark_grey">Enter saved key:</span>
+    <input type="text" id="txtbx_load" />
+    <button type="button" id="btn_loadKey" onclick="btnOnClick_LoadKey();">Load Key</button>
+    <span id="text_loadKey_result"></span>
 </p>
 
 <p id="p_save_line">
-<span class="text_dark_grey">Copy and save this key:</span>
-<input type="text" class="text_dark_grey" id="txtbx_save" readonly=true />
+    <span class="text_dark_grey">Copy and save this key:</span>
+    <input type="text" class="text_dark_grey" id="txtbx_save" readonly=true />
 </p>
 
 <table id="tbl_wedge_settings">
