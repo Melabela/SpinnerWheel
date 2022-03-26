@@ -284,6 +284,7 @@
         // 3. check, are we done stopping?
         if (stopping_progress >= 1.0) {
             update_spin_button_state(WHEEL_STATE_STOPPED);
+            settings_elems_enable(true);
             g_wheelStopping_start_time = 0;
             g_wheelStopping_end_time = 0;
         }
@@ -324,6 +325,16 @@
         const elem_reset = document.getElementById('btn_reset');
         if (elem_reset) {
             elem_reset.disabled = !set_on;
+        }
+
+        const elem_load = document.getElementById('btn_load');
+        if (elem_load) {
+            elem_load.disabled = !set_on;
+        }
+
+        const elem_save = document.getElementById('btn_save');
+        if (elem_save) {
+            elem_save.disabled = !set_on;
         }
 
         for (let i=1; i<=MAX_WEDGES; i++) {
