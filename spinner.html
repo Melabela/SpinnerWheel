@@ -21,9 +21,9 @@
     const CANVAS_WIDTH = 220;  // height same; assume using square box
     const WHEEL_RADIUS = 100;  // diameter = 200
 
-    // assuming 60 FPS - one full rotation every 2 seconds
+    // assuming 60 FPS - one full rotation every 1 seconds
     //  Note:  seems like +'ve radians are clockwise, prob. b/c +y is Down
-    const ROTATION_PER_FRAME = -(Math.PI / 60);
+    const MAX_ROTATION_PER_FRAME = -(Math.PI / 30);
 
     // start w/ -90 deg, make '1' at top
     const ROTATION_INIT_OFFSET = -(Math.PI / 2);
@@ -53,10 +53,22 @@
 
     const POINTER_COLOR = 'red';
 
+    const WHEEL_STATE_STOPPED  = 0;
+    const WHEEL_STATE_SPINNING = 1;
+    const WHEEL_STATE_STOPPING = 2;
+
+    const WHEEL_STOPPING_MIN_MSECS = 3 * 1000;
+    const WHEEL_STOPPING_MAX_MSECS = 8 * 1000;
+
     // globals
-    let gb_wheel_spinning;
+    let g_wheel_state;
     let g_rot_offset;  // angle offset for wheel spin
     let g_wedge_settings;
+
+    // use for wheel slow-down ("STOPPING")
+    // - wheel stop progress & speed computed from below
+    let g_wheelStopping_start_time;
+    let g_wheelStopping_end_time;
 
     // utility fns
     function areFloatsApproxEqual(a, b, maxOffset) {
@@ -75,6 +87,11 @@
         }
 
         return outAngleRad;
+    }
+
+    function getRandomIntInRange(min, max) {
+        const range = (max - min);
+        return Math.round(min + (Math.random() * range));
     }
 
     // FYI - instead of manually calculating rotations,
@@ -132,7 +149,7 @@
         ctx.fill();
 
         // if not spinning, also print wedge number
-        if (!gb_wheel_spinning) {
+        if (g_wheel_state == WHEEL_STATE_STOPPED) {
             const segNum = idx;
             const xText = (segNum >= 10) ? x1 * 0.6 : x1 * 0.7;
             const yText = y2 / 2;
@@ -239,6 +256,41 @@
         ctx.restore();
     }
 
+    // REF - https://easings.net/#easeOutQuad
+    // -> x:  [0.0, 1.0]
+    function easeOut_quad(x) {
+        const remain = (1.0 - x);
+        return (1.0 - (remain * remain));
+    }
+
+    function update_stopping(max_rot_per_frame) {
+        // 1. determine progress [0.0, 1.0] towards stop
+        //    #-------^-----#
+        //  start    curr  stop
+        const time_now = new Date().getTime();
+        const stopping_progress =
+            (time_now > g_wheelStopping_end_time)
+                ? 1.0
+                : ( (time_now - g_wheelStopping_start_time) /
+                    (g_wheelStopping_end_time - g_wheelStopping_start_time) );
+
+        // 2. add motion easing on top of progress
+        // slowing down, so (1 - easing)
+        const rot_mult_wEasing = 1.0 - easeOut_quad(stopping_progress);
+        const rot_offset = (max_rot_per_frame * rot_mult_wEasing);
+
+        // console.log(`update_stopping(): tNow=${time_now}, progress=${stopping_progress}, rot_mult_wEasing=${rot_mult_wEasing}`);
+
+        // 3. check, are we done stopping?
+        if (stopping_progress >= 1.0) {
+            update_spin_button_state(WHEEL_STATE_STOPPED);
+            g_wheelStopping_start_time = 0;
+            g_wheelStopping_end_time = 0;
+        }
+
+        return rot_offset;
+    }
+
     function draw() {
         const canvas = document.getElementById('spinner');
         if (canvas.getContext) {
@@ -246,9 +298,15 @@
 
             drawWheel(ctx, CANVAS_WIDTH, WHEEL_RADIUS, g_rot_offset);
 
-            if (gb_wheel_spinning) {
+            if (g_wheel_state != WHEEL_STATE_STOPPED) {
+                let rot_offset = MAX_ROTATION_PER_FRAME;
+
+                if (g_wheel_state == WHEEL_STATE_STOPPING) {
+                    rot_offset = update_stopping(MAX_ROTATION_PER_FRAME);
+                }
+
                 // update rotation offset, to make spin
-                g_rot_offset += ROTATION_PER_FRAME;
+                g_rot_offset += rot_offset;
                 // normalize rotation offset into std radian range [0, 2*PI]
                 g_rot_offset = normalizeAngle(g_rot_offset);
 
@@ -446,20 +504,68 @@
         // console.log('encode_str:', encode_str);
         save_txtbx_update(encode_str);
 
+        // do draw once, to update wheel
         draw();
+    }
+
+    function update_spin_button_state(new_state) {
+        let button_text;
+        let button_enable;
+
+        switch (new_state) {
+        case WHEEL_STATE_STOPPED:
+            button_text = 'Spin!';
+            button_enable = true;
+            break;
+        case WHEEL_STATE_SPINNING:
+            button_text = 'Stop...';
+            button_enable = true;
+            break;
+        case WHEEL_STATE_STOPPING:
+            button_text = '(Wait)';
+            button_enable = false;
+            break;
+        }
+
+        g_wheel_state = new_state;
+
+        const elem_btnSpin = document.getElementById('btn_spin');
+        if (elem_btnSpin) {
+            elem_btnSpin.innerHTML = button_text;
+            elem_btnSpin.disabled = !button_enable;
+        }
     }
 
     // invert flag, and update button text
     function btnOnClick_Spin() {
-        gb_wheel_spinning = !gb_wheel_spinning;
+        const curr_state = g_wheel_state;
+        let new_state;
+        if (g_wheel_state == WHEEL_STATE_STOPPED) {
+            new_state = WHEEL_STATE_SPINNING;
+        }
+        else if (g_wheel_state == WHEEL_STATE_SPINNING) {
+            new_state = WHEEL_STATE_STOPPING;
 
-        const btn_spin = document.getElementById('btn_spin');
-        btn_spin.innerHTML = (gb_wheel_spinning) ? 'Stop...' : 'Spin!';
+            // set up params for STOPPING
+            // 1. note current time
+            g_wheelStopping_start_time = new Date().getTime();
+            // 2. decide how long to stop
+            const wheel_stopping_msecs = getRandomIntInRange(
+                WHEEL_STOPPING_MIN_MSECS, WHEEL_STOPPING_MAX_MSECS);
+            g_wheelStopping_end_time =
+                g_wheelStopping_start_time + wheel_stopping_msecs;
 
-        settings_elems_enable(!gb_wheel_spinning);
+            // console.log(`g_wheelStopping: start_time=${g_wheelStopping_start_time}, end_time=${g_wheelStopping_end_time}, stopping_msecs=${wheel_stopping_msecs}`);
+        }
+        // STOPPING state change NOT done via this button, so no condition
 
-        if (gb_wheel_spinning) {
-            window.requestAnimationFrame(draw);
+        update_spin_button_state(new_state);
+
+        settings_elems_enable(g_wheel_state == WHEEL_STATE_STOPPED);
+
+        if (g_wheel_state == WHEEL_STATE_SPINNING) {
+            // call draw, to kick off drawing cycle
+            draw();
         }
     }
 
@@ -586,8 +692,10 @@
     }
 
     function init() {
-        gb_wheel_spinning = false;
+        g_wheel_state = WHEEL_STATE_STOPPED;
         g_rot_offset = ROTATION_INIT_OFFSET;
+        g_wheelStopping_start_time = 0;
+        g_wheelStopping_end_time = 0;
 
         set_wedge_num_cell_bg();
 
